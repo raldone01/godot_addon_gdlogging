@@ -4,9 +4,9 @@
 
 ```gdscript
 Logger.add_sink(Logger.DirSink.new("MyLog", "res://log"))
-Logger.debug("Hello World")                         # Outputs: [         Global] [24/Jan/13_22:59:12] [DBG] Hello World
-Logger.LocalLogger("MyClass").debug("Hello World")  # Outputs: [        MyClass] [24/Jan/13_22:59:12] [DBG] Hello World
-Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))       # Outputs: [         Global] [24/Jan/13_22:59:12] [INF] File: Not found error.
+Logger.debug("Hello World")                                 # Outputs: [         Global] [24/Jan/13_22:59:12] [DBG] Hello World
+Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [        MyClass] [24/Jan/13_22:59:12] [DBG] Hello World
+Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [         Global] [24/Jan/13_22:59:12] [INF] File: Not found error.
 ```
 
 ## Sinks
