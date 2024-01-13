@@ -382,7 +382,7 @@ func _exit_tree():
 	_flush_buffer()
 
 # https://github.com/KOBUGE-Games/godot-logger/blob/c7e0a3bb8957dfff8dfd3b2f7db511e66360ca1e/logger.gd#L256C1-L310C1
-# BEGIN LICENSE MIT: LICENSE-godot-logger.md
+# BEGIN LICENSE MIT: `LICENSE-godot-logger.md`
 # Copyright (c) 2016 KOBUGE Games
 # Maps Error code to strings.
 # This might eventually be supported out of the box in Godot,
