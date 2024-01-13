@@ -26,6 +26,8 @@ cd addons
 git submodule add git@github.com:raldone01/godot_addon_gdlogging.git gdlogging
 ```
 
+`Project -> Project Settings -> Plugins -> gdlogging -> Activate`
+
 ## Licensing
 
 Marked parts are licensed under the `LICENSE-godot-logger.md` (MIT) license.
