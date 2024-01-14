@@ -87,11 +87,15 @@ static func format_time_for_filename(unix_time: float) -> String:
 ## Base class to be inherited by sinks.
 ## All message formatting has already been done by the logger.
 class LogSink:
-	## Writes a string to the sink
-	func write(log_record: Dictionary, formatted_message: String) -> void:
-		printerr("LogSink: write() not implemented.")
+	## Write many log records to the sink
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		printerr("LogSink: write_bulks() not implemented.")
+	## Flushes the buffer of the sink if it has one.
 	func flush_buffer() -> void:
 		printerr("LogSink: flush_buffer() not implemented.")
+	## Cleans up resources used by the sink.
+	func close() -> void:
+		pass
 
 class FilteringSink extends LogSink:
 	var _sink: LogSink
@@ -101,13 +105,23 @@ class FilteringSink extends LogSink:
 		_sink = sink
 		_level = level
 
-	func write(log_record: Dictionary, formatted_message: String) -> void:
-		var level = log_record["level"]
-		if level >= _level:
-			_sink.write(log_record, formatted_message)
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		var filtered_log_records: Array[Dictionary] = []
+		var filtered_formatted_messages: PackedStringArray = PackedStringArray()
+		for i in range(log_records.size()):
+			var log_record = log_records[i]
+			var formatted_message = formatted_messages[i]
+			var level = log_record["level"]
+			if level >= _level:
+				filtered_log_records.append(log_record)
+				filtered_formatted_messages.append(formatted_message)
+		_sink.write_bulks(filtered_log_records, filtered_formatted_messages)
 
 	func flush_buffer() -> void:
 		_sink.flush_buffer()
+
+	func close() -> void:
+		_sink.close()
 
 class BroadcastSink extends LogSink:
 	var _sinks: Array = []
@@ -118,19 +132,23 @@ class BroadcastSink extends LogSink:
 	func remove_sink(sink: LogSink) -> void:
 		_sinks.erase(sink)
 
-	func write(log_record: Dictionary, formatted_message: String) -> void:
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
 		for sink in _sinks:
-			sink.write(log_record, formatted_message)
+			sink.write_bulks(log_records, formatted_messages)
 
 	func flush_buffer() -> void:
 		for sink in _sinks:
 			sink.flush_buffer()
 
+	func close() -> void:
+		for sink in _sinks:
+			sink.close()
+
 class BufferedSink extends LogSink:
 	var _sink: LogSink
 
-	var _buffer_log_records: Array = []
-	var _buffer = PackedStringArray()
+	var _buffer_log_records: Array[Dictionary] = []
+	var _buffer_formatted_messages: PackedStringArray = PackedStringArray()
 	var _buffer_cnt = 0
 	var _buffer_size = 0
 
@@ -147,31 +165,37 @@ class BufferedSink extends LogSink:
 		_buffer_size = buffer_size
 		_sink = sink
 
-	## Flushes the buffer to the sink.
 	func flush_buffer() -> void:
-		for i in range(_buffer_cnt):
-			_sink.write(_buffer_log_records[i], _buffer[i])
+		_sink.write_bulks(_buffer_log_records, _buffer_formatted_messages)
 		_buffer_cnt = 0
 		_sink.flush_buffer()
 
-	## Writes a string to the end of the buffer.
-	func write(log_record: Dictionary, formatted_message: String) -> void:
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
 		if _buffer_size == 0:
-			_sink.write(log_record, formatted_message)
+			_sink.write_bulks(log_records, formatted_messages)
 			return
-		_buffer_log_records.append(log_record)
-		_buffer.append(formatted_message)
-		_buffer_cnt += 1
+		_buffer_log_records.append_array(log_records)
+		_buffer_formatted_messages.append_array(formatted_messages)
+		_buffer_cnt += log_records.size()
 		if _buffer_cnt >= _buffer_size:
 			flush_buffer()
 
+	func close() -> void:
+		flush_buffer()
+		_sink.close()
+
 class ConsoleSink extends LogSink:
-	func write(log_record: Dictionary, formatted_message: String) -> void:
-		var level = log_record["level"]
-		if level <= LogLevel.INFO:
-			print(formatted_message)
-		else:
-			printerr(formatted_message)
+
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		for i in range(formatted_messages.size()):
+			var log_record = log_records[i]
+			var formatted_message = formatted_messages[i]
+			var level = log_record["level"]
+			if level <= LogLevel.INFO:
+				print(formatted_message)
+			else:
+				printerr(formatted_message)
+
 	func flush_buffer() -> void:
 		pass
 
@@ -181,14 +205,21 @@ class DirSink extends LogSink:
 	var _max_file_size: int
 	var _max_file_count: int
 
-	var _current_file: FileAccess
-	var _current_file_size: int
-	var _file_count: int = 0
+	var _io_thread_last_dir_listing: Array = []
 
-	var _last_dir_listing: Array = []
+	var _io_thread_current_file: FileAccess
+	var _io_thread_current_file_size: int
+	var _io_thread_file_count: int = 0
 
 	static var _last_session_id: int = randi() % 1000 + roundi(Time.get_unix_time_from_system() * 1000) % 1000
 	var _session_id: int = _last_session_id + 1
+
+	var _io_thread: Thread
+	var _io_thread_formatted_messages: PackedStringArray = PackedStringArray()
+	var _io_thread_log_lock: Mutex = Mutex.new()
+	var _io_thread_work_semaphore: Semaphore = Semaphore.new()
+	var _io_thread_exit: bool = false
+	var _io_thread_flush_buffer: bool = false
 
 	func _init(log_name: String, dir_path: String, max_file_size: int = 4042, max_file_count: int = 10) -> void:
 		_log_name = log_name
@@ -199,6 +230,9 @@ class DirSink extends LogSink:
 			_dir_path = dir_path_t
 		self._max_file_size = max_file_size
 		self._max_file_count = max_file_count
+
+		_io_thread = Thread.new()
+		_io_thread.start(Callable(self, "_io_thread_main"))
 
 	func _validate_dir(dir_path: String) -> Variant:
 		if not (dir_path.is_absolute_path() or dir_path.is_relative_path()):
@@ -219,8 +253,8 @@ class DirSink extends LogSink:
 			return false
 		return true
 
-	func _update_dir_listing() -> void:
-		_last_dir_listing = []
+	func _io_thread_update_dir_listing() -> void:
+		_io_thread_last_dir_listing = []
 		var dir_list: DirAccess = DirAccess.open(_dir_path)
 		if not dir_list:
 			return
@@ -230,8 +264,8 @@ class DirSink extends LogSink:
 			if filename == "":
 				break
 			if _is_log_file(filename):
-				_last_dir_listing.append(filename)
-		_last_dir_listing.sort_custom(Callable(self, "_compare_file_modification_time"))
+				_io_thread_last_dir_listing.append(filename)
+		_io_thread_last_dir_listing.sort_custom(Callable(self, "_compare_file_modification_time"))
 		dir_list.list_dir_end()
 
 	## Descending order: oldest last
@@ -242,80 +276,130 @@ class DirSink extends LogSink:
 		var b_time = FileAccess.get_modified_time(b_path)
 		return a_time > b_time
 
-	func _generate_filename() -> String:
+	func _io_thread_generate_filename() -> String:
 		var filename = "log_%s_%s_%d_%d.log" % [
 			_log_name,
 			Logger.format_time_for_filename(Time.get_unix_time_from_system()),
 			_session_id,
-			_file_count
+			_io_thread_file_count
 		]
 		filename = filename.replace(" ", "_").replace("/", "-").replace(":", "-")
 		return filename
 
-	func _cleanup_old_files() -> void:
-		var file_count = _last_dir_listing.size()
+	func _io_thread_cleanup_old_files() -> void:
+		var last_dir_listing = _io_thread_last_dir_listing
+		var file_count = last_dir_listing.size()
 		if file_count <= _max_file_count:
 			return
 		var files_to_delete = file_count - _max_file_count
 		for i in range(files_to_delete):
-			var filename = _last_dir_listing[-1]
+			var filename = last_dir_listing[-1]
 			var path = _dir_path + "/" + filename
 			OS.move_to_trash(path)
-			_last_dir_listing.remove_at(-1)
+			last_dir_listing.remove_at(last_dir_listing.size() - 1)
 
 	func flush_buffer() -> void:
-		if not _current_file:
-			return
-		_current_file.flush()
+		_io_thread_flush_buffer = true
+		_io_thread_work_semaphore.post()
 
-	func write(_log_record: Dictionary, formatted_message: String) -> void:
-		if not _current_file:
-			_open_new_file()
-		if _current_file_size >= _max_file_size:
-			_open_new_file()
-		if not _current_file:
-			return
-		var log_message = formatted_message + "\n"
-		# only approximate size utf8
-		_current_file_size += log_message.length()
-		_current_file.store_string(log_message)
+	func _io_thread_main() -> void:
+		var formatted_messages: PackedStringArray
+		var lock_timer = LogTimer.new("IO_THREAD_LOCK", 0, LocalLogger.new("DirSink", LogLevel.TRACE, LogRecordFormatter.new(), ConsoleSink.new()))
+		var wait_timer = LogTimer.new("IO_THREAD_WAIT", 0, LocalLogger.new("DirSink", LogLevel.TRACE, LogRecordFormatter.new(), ConsoleSink.new()))
+		while not _io_thread_exit:
+			wait_timer.start()
+			_io_thread_work_semaphore.wait()
+			wait_timer.stop()
+			lock_timer.start()
+			_io_thread_log_lock.lock()
+			formatted_messages = _io_thread_formatted_messages
+			_io_thread_formatted_messages = []
+			_io_thread_log_lock.unlock()
+			var log_block: String = _io_thread_concat_messages(formatted_messages)
+			# write formatted message
+			if not _io_thread_current_file:
+				_io_thread_open_new_file()
+			if _io_thread_current_file_size >= _max_file_size:
+				_io_thread_open_new_file()
+			# only approximate size utf8
+			_io_thread_current_file_size += log_block.length()
+			_io_thread_current_file.store_string(log_block)
+			# clear temp buffer
+			formatted_messages.clear()
+			# flush file
+			if _io_thread_flush_buffer:
+				_io_thread_flush_buffer = false
+				if _io_thread_current_file:
+					_io_thread_current_file.flush()
+			lock_timer.stop()
+		# thread exit
+		if _io_thread_current_file:
+			_io_thread_current_file.close()
 
-	func _open_new_file() -> void:
+	func _io_thread_concat_messages(formatted_message: PackedStringArray) -> String:
+		var log_block: String = ""
+		for i in range(formatted_message.size()):
+			log_block += formatted_message[i] + "\n"
+		return log_block
+
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		var timer = LogTimer.new("DirSink.write_bulks()", 0, LocalLogger.new("DirSink", LogLevel.TRACE, LogRecordFormatter.new(), ConsoleSink.new()))
+		_io_thread_log_lock.lock()
+		_io_thread_formatted_messages.append_array(formatted_messages)
+		_io_thread_log_lock.unlock()
+		_io_thread_work_semaphore.post()
+		timer.stop()
+
+	func _io_thread_open_new_file() -> void:
 		if not _dir_path:
 			return
-		if _current_file:
-			_current_file.close()
 
-		_update_dir_listing()
-		_cleanup_old_files()
+		var current_file = _io_thread_current_file
 
-		var filename = _generate_filename()
+		if current_file:
+			current_file.close()
+
+		_io_thread_update_dir_listing()
+		_io_thread_cleanup_old_files()
+
+		var filename = _io_thread_generate_filename()
 		var path = _dir_path + "/" + filename
-		_current_file = FileAccess.open(path, FileAccess.WRITE)
-		_current_file_size = 0
+		_io_thread_current_file = FileAccess.open(path, FileAccess.WRITE)
+		_io_thread_current_file_size = 0
 
-		if not _current_file:
+		if not _io_thread_current_file:
 			printerr("DirSink: Failed to open new log file '%s'." % path)
 			return
-		_file_count += 1
+		_io_thread_file_count += 1
+
+	func close() -> void:
+		_io_thread_exit = true
+		_io_thread_work_semaphore.post()
+		_io_thread.wait_to_finish()
 
 class MemoryWindowSink extends LogSink:
 	var _max_lines: int
-	var _lines: Array = []
+	var _formatted_messages: Array = []
+	var _log_records: Array = []
 
 	func _init(max_lines: int = 100) -> void:
 		_max_lines = max_lines
 
-	func write(log_record: Dictionary, formatted_message: String) -> void:
-		_lines.append(formatted_message)
-		if _lines.size() > _max_lines:
-			_lines.remove_at(0)
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		_formatted_messages.append_array(formatted_messages)
+		_log_records.append_array(log_records)
+		while _formatted_messages.size() > _max_lines:
+			_formatted_messages.remove_at(0)
+			_log_records.remove_at(0)
 
 	func flush_buffer() -> void:
 		pass
 
-	func get_lines() -> Array:
-		return _lines
+	func get_buffer() -> Dictionary:
+		return {
+			"formatted_messages": _formatted_messages,
+			"log_records": _log_records,
+		}
 
 ## Left pads a string with a character to a given length.
 static func pad_string(string: String, length: int, pad_char: String = " ") -> String:
@@ -372,8 +456,8 @@ class LocalLogger extends LogSink:
 		_sink = sink
 
 	# Write will not format the message, it will just pass it to the underlying sink.
-	func write(log_record: Dictionary, formatted_message: String) -> void:
-		_sink.write(log_record, formatted_message)
+	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+		_sink.write_bulks(log_records, formatted_messages)
 
 	func flush_buffer() -> void:
 		_sink.flush_buffer()
@@ -398,7 +482,7 @@ class LocalLogger extends LogSink:
 		log_record["time_unix"] = Time.get_unix_time_from_system()
 		log_record["unformatted_message"] = message
 		var formatted_message = _log_record_formatter.format(log_record, message)
-		_sink.write(log_record, formatted_message)
+		_sink.write_bulks([log_record], [formatted_message])
 
 	func trace(message: String, stack_depth: int = 1, stack_hint: int = 1) -> void:
 		var log_record: Dictionary = {}
@@ -420,6 +504,46 @@ class LocalLogger extends LogSink:
 	func error(message: String) -> void:
 		self.log(LogLevel.ERROR, message)
 
+	func close() -> void:
+		_sink.close()
+
+class LogTimer:
+	var _start_time_usec: int
+	var _end_time_usec: int
+
+	var _threshold_msec: int = 0
+
+	var _logger: LocalLogger
+	var _message: String
+	var _level: LogLevel = LogLevel.INFO
+
+	func _init(message: String, threshold_msec: int = 0, logger: LocalLogger = Logger._global_logger) -> void:
+		_logger = logger
+		_message = message
+		_threshold_msec = threshold_msec
+		_start_time_usec = Time.get_ticks_usec()
+
+	func set_level(level: LogLevel) -> void:
+		_level = level
+
+	func set_threshold_msec(threshold_msec: int) -> void:
+		_threshold_msec = threshold_msec
+
+	func start() -> void:
+		_start_time_usec = Time.get_ticks_usec()
+
+	func stop() -> void:
+		_end_time_usec = Time.get_ticks_usec()
+		var elapsed_time_usec = _end_time_usec - _start_time_usec
+		var elapsed_time_sec = elapsed_time_usec / 1000000.0
+
+		if _threshold_msec == 0:
+			_logger.log(_level, "%s took %f seconds." % [_message, elapsed_time_sec])
+			return
+
+		if _threshold_msec < elapsed_time_usec / 1000:
+			_logger.log(_level, "Threshold of %d msec exceeded: %s took %f seconds." % [_threshold_msec, _message, elapsed_time_sec])
+
 var _global_broadcast_sink: BroadcastSink
 var _global_logger: LocalLogger
 
@@ -430,7 +554,8 @@ func _init() -> void:
 		add_sink(ConsoleSink.new())
 
 func _exit_tree() -> void:
-	_flush_buffer()
+	flush_buffer()
+	_global_logger.close()
 
 func trace(message: String, stack_depth: int = 1, stack_hint: int = 2) -> void:
 	_global_logger.trace(message, stack_depth, stack_hint)
@@ -462,7 +587,7 @@ func add_sink(sink: LogSink) -> void:
 func remove_sink(sink: LogSink) -> void:
 	_global_broadcast_sink.remove_sink(sink)
 
-func _flush_buffer() -> void:
+func flush_buffer() -> void:
 	_global_logger.flush_buffer()
 
 # https://github.com/KOBUGE-Games/godot-logger/blob/c7e0a3bb8957dfff8dfd3b2f7db511e66360ca1e/logger.gd#L256C1-L310C1
