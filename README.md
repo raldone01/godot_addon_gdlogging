@@ -13,7 +13,7 @@ Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [24/Jan/1
 Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [24/Jan/13_22:59:12] [         Global] [INF] File: Not found error.
 var timer = Logger.LogTimer.new("MyTimer")
 function_to_time()
-timer.stop()                                                # Outputs: [24/Jan/13_22:59:15] [      MyTimer] [INF] Function 'function_to_time' took 3.549 seconds.
+timer.stop()                                                # Outputs: [24/Jan/13_22:59:15] [        MyTimer] [INF] Function 'function_to_time' took 3.549 seconds.
 ```
 
 ## Sinks
