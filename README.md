@@ -17,6 +17,7 @@ Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [        
 * ConsoleSink: Outputs messages to the console
 * DirSink: Outputs messages to a log files and rotates them
 * LocalLogger: Can receive messages from other LocalLoggers and Sinks. Users will call the log functions which format the message.
+* MemoryWindowSink: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
 
 ## Installation
 

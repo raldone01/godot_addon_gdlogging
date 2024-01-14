@@ -270,6 +270,24 @@ class DirSink extends LogSink:
 			printerr("DirSink: Failed to open file '%s'." % path)
 			return
 
+class MemoryWindowSink extends LogSink:
+	var _max_lines: int
+	var _lines: Array = []
+
+	func _init(max_lines: int = 100) -> void:
+		_max_lines = max_lines
+
+	func write(details: Dictionary, message: String) -> void:
+		_lines.append(message)
+		if _lines.size() > _max_lines:
+			_lines.remove_at(0)
+
+	func flush_buffer() -> void:
+		pass
+
+	func get_lines() -> Array:
+		return _lines
+
 ## Left pads a string with a character to a given length.
 static func pad_string(string: String, length: int, pad_char: String = " ") -> String:
 	var pad_length = length - string.length()
