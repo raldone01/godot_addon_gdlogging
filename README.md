@@ -3,6 +3,15 @@
 ## Usage
 
 ```gdscript
+var console_sink = Logger.ConsoleSink.new()
+Logger.add_sink(console_sink)
+
+var dir_sink = Logger.DirSink.new("mylog", "res://logs", 4042)
+var buffered_sink = Logger.BufferedSink.new(dir_sink, 500)
+# Don't log TRACE messages to the log file
+var file_filtered_sink = Logger.FilteringSink.new(buffered_sink, Logger.DEBUG)
+Logger.add_sink(file_filtered_sink)
+
 Logger.debug("Hello World")
 # [24/Jan/14 13:28:03] [         Global] [DBG] Hello World
 var logger: Logger.LocalLogger = Logger.LocalLogger.new("MyClass")
@@ -60,6 +69,7 @@ class MyLogRecordFormatter extends Logger.LogRecordFormatter:
       raw_message
     ]
     return formatted_message
+# LocalLoggers use the global formatter by default but this can be overridden in the constructor.
 Logger.set_log_record_formatter(MyLogRecordFormatter.new())
 ```
 
