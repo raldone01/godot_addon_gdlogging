@@ -346,6 +346,7 @@ class LocalLogger extends LogSink:
 			"level": level,
 			"tag": _tag,
 			"time_unix": Time.get_unix_time_from_system(),
+			"unformatted_message": message,
 		}
 		var formatted_log_message = _format_log_message(details, message)
 		_sink.write(details, formatted_log_message)
