@@ -14,7 +14,7 @@ Log.add_sink(file_filtered_sink)
 
 Log.debug("Hello World")
 # [24/Jan/14 13:28:03] [         Global] [DBG] Hello World
-var logger: Log.LocalLogger = Log.LocalLog.new("MyClass")
+var logger: Log.Logger = Log.Logger.new("MyClass")
 logger.debug("Hello World")
 # [24/Jan/14 13:28:03] [        MyClass] [DBG] Hello World
 Log.info(Log.format_error(ERR_FILE_NOT_FOUND))
@@ -42,7 +42,7 @@ timer.stop()
 * `BufferedSink`: Buffers messages and forwards them to another sink.
 * `ConsoleSink`: Outputs messages to the console.
 * `DirSink`: Outputs messages to a log files and rotates them. Uses a thread for file io.
-* `LocalLogger`: Can receive messages from other LocalLoggers and Sinks. Users will call the log functions which format the message.
+* `Logger`: Can receive messages from other Loggers and Sinks. Users will call the log functions which format the message.
 * `MemoryWindowSink`: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
 
 ## Log Levels
@@ -70,7 +70,7 @@ class MyLogRecordFormatter extends Log.LogRecordFormatter:
       unformatted_message
     ]
     return formatted_message
-# LocalLoggers use the global formatter by default but this can be overridden in the constructor.
+# Logger use the global formatter by default but this can be overridden in the constructor.
 Log.set_log_record_formatter(MyLogRecordFormatter.new())
 ```
 

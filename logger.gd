@@ -445,7 +445,7 @@ class LogRecordFormatter:
 				]
 		return formatted_message
 
-class LocalLogger extends LogSink:
+class Logger extends LogSink:
 	var _tag: String
 	var _log_record_formatter: LogRecordFormatter
 	var _level: LogLevel
@@ -520,11 +520,11 @@ class LogTimer:
 
 	var _threshold_msec: int = 0
 
-	var _logger: LocalLogger
+	var _logger: Logger
 	var _message: String
 	var _level: LogLevel = LogLevel.INFO
 
-	func _init(message: String, threshold_msec: int = 0, logger: LocalLogger = Log._global_logger) -> void:
+	func _init(message: String, threshold_msec: int = 0, logger: Logger = Log._global_logger) -> void:
 		_logger = logger
 		_message = message
 		_threshold_msec = threshold_msec
@@ -552,11 +552,11 @@ class LogTimer:
 			_logger.log(_level, "%s exceeded threshold of %d msec: took %f seconds." % [_message, _threshold_msec, elapsed_time_sec])
 
 var _global_broadcast_sink: BroadcastSink
-var _global_logger: LocalLogger
+var _global_logger: Logger
 
 func _init() -> void:
 	_global_broadcast_sink = BroadcastSink.new()
-	_global_logger = LocalLogger.new("Global", LogLevel.TRACE, LogRecordFormatter.new(), _global_broadcast_sink)
+	_global_logger = Logger.new("Global", LogLevel.TRACE, LogRecordFormatter.new(), _global_broadcast_sink)
 	if Engine.is_editor_hint():
 		add_sink(ConsoleSink.new())
 
