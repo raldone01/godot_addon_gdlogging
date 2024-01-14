@@ -32,18 +32,18 @@ Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [24/Jan/1
 
 ```gdscript
 class MyLogRecordFormatter extends Logger.LogRecordFormatter:
-	func format(log_record: Dictionary, raw_message: String) -> String:
-		var time_unix = log_record["time_unix"]
-		var level = log_record["level"]
+  func format(log_record: Dictionary, raw_message: String) -> String:
+    var time_unix = log_record["time_unix"]
+    var level = log_record["level"]
 
-		var time_str = Time.get_date_string_from_unix_time(time_unix)
-		var level_str = Logger.get_level_name(level)
-		var formatted_message = "[%s] [%s] %s" % [
-			time_str,
+    var time_str = Time.get_date_string_from_unix_time(time_unix)
+    var level_str = Logger.get_level_name(level)
+    var formatted_message = "[%s] [%s] %s" % [
+      time_str,
       level_str,
-			raw_message
-		]
-		return formatted_message
+      raw_message
+    ]
+    return formatted_message
 set_log_record_formatter(MyLogRecordFormatter.new())
 ```
 
