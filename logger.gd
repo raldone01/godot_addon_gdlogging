@@ -125,7 +125,7 @@ class FilteringSink extends LogSink:
 		_sink.close()
 
 class BroadcastSink extends LogSink:
-	var _sinks: Array = []
+	var _sinks: Array[LogSink] = []
 
 	func add_sink(sink: LogSink) -> void:
 		_sinks.append(sink)
@@ -219,7 +219,7 @@ class DirSink extends LogSink:
 	var _max_file_size: int
 	var _max_file_count: int
 
-	var _io_thread_last_dir_listing: Array = []
+	var _io_thread_last_dir_listing: Array[String] = []
 
 	var _io_thread_current_file: FileAccess
 	var _io_thread_current_file_size: int
@@ -268,7 +268,7 @@ class DirSink extends LogSink:
 		return true
 
 	func _io_thread_update_dir_listing() -> void:
-		_io_thread_last_dir_listing = []
+		_io_thread_last_dir_listing.clear()
 		var dir_list: DirAccess = DirAccess.open(_dir_path)
 		if not dir_list:
 			return
@@ -385,8 +385,8 @@ class DirSink extends LogSink:
 
 class MemoryWindowSink extends LogSink:
 	var _max_lines: int
-	var _formatted_messages: Array = []
-	var _log_records: Array = []
+	var _formatted_messages: PackedStringArray = PackedStringArray()
+	var _log_records: Array[Dictionary] = []
 
 	func _init(max_lines: int = 100) -> void:
 		_max_lines = max_lines
@@ -462,7 +462,7 @@ class Logger extends LogSink:
 		_level = level
 		_sink = sink
 
-	# Write will not format the message, it will just pass it to the underlying sink.
+	## Write will not format the message, it will just pass it to the underlying sink.
 	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
 		_sink.write_bulks(log_records, formatted_messages)
 
