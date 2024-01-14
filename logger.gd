@@ -293,7 +293,7 @@ class DirSink extends LogSink:
 	func _io_thread_generate_filename() -> String:
 		var filename = "log_%s_%s_%d_%d.log" % [
 			_log_name,
-			Logger.format_time_for_filename(Time.get_unix_time_from_system()),
+			Log.format_time_for_filename(Time.get_unix_time_from_system()),
 			_session_id,
 			_io_thread_file_count
 		]
@@ -423,11 +423,11 @@ class LogRecordFormatter:
 		var time_unix = log_record["time_unix"]
 		var level = log_record["level"]
 
-		var time_str = Logger.format_time(time_unix)
-		var level_str = Logger.get_short_level_name(level)
+		var time_str = Log.format_time(time_unix)
+		var level_str = Log.get_short_level_name(level)
 		var formatted_message = "[%s] [%s] [%s] %s" % [
 			time_str,
-			Logger.pad_string(tag, 15),
+			Log.pad_string(tag, 15),
 			level_str,
 			raw_message
 		]
@@ -453,8 +453,8 @@ class LocalLogger extends LogSink:
 	func _init(
 		tag: String,
 		level: LogLevel = LogLevel.TRACE,
-		log_record_formatter: LogRecordFormatter = Logger._global_logger._log_record_formatter,
-		sink: LogSink = Logger._global_logger
+		log_record_formatter: LogRecordFormatter = Log._global_logger._log_record_formatter,
+		sink: LogSink = Log._global_logger
 	) -> void:
 		_tag = tag
 		_log_record_formatter = log_record_formatter
@@ -523,7 +523,7 @@ class LogTimer:
 	var _message: String
 	var _level: LogLevel = LogLevel.INFO
 
-	func _init(message: String, threshold_msec: int = 0, logger: LocalLogger = Logger._global_logger) -> void:
+	func _init(message: String, threshold_msec: int = 0, logger: LocalLogger = Log._global_logger) -> void:
 		_logger = logger
 		_message = message
 		_threshold_msec = threshold_msec
