@@ -60,7 +60,7 @@ class MyLogRecordFormatter extends Logger.LogRecordFormatter:
       raw_message
     ]
     return formatted_message
-set_log_record_formatter(MyLogRecordFormatter.new())
+Logger.set_log_record_formatter(MyLogRecordFormatter.new())
 ```
 
 ## Installation

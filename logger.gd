@@ -453,7 +453,7 @@ class LocalLogger extends LogSink:
 	func _init(
 		tag: String,
 		level: LogLevel = LogLevel.TRACE,
-		log_record_formatter: LogRecordFormatter = LogRecordFormatter.new(),
+		log_record_formatter: LogRecordFormatter = Logger._global_logger._log_record_formatter,
 		sink: LogSink = Logger._global_logger
 	) -> void:
 		_tag = tag
