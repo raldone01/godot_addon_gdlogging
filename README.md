@@ -60,13 +60,14 @@ class MyLogRecordFormatter extends Log.LogRecordFormatter:
   func format(log_record: Dictionary, raw_message: String) -> String:
     var time_unix = log_record["time_unix"]
     var level = log_record["level"]
+		var unformatted_message = log_record["unformatted_message"]
 
     var time_str = Time.get_date_string_from_unix_time(time_unix)
     var level_str = Log.get_level_name(level)
     var formatted_message = "[%s] [%s] %s" % [
       time_str,
       level_str,
-      raw_message
+      unformatted_message
     ]
     return formatted_message
 # LocalLoggers use the global formatter by default but this can be overridden in the constructor.

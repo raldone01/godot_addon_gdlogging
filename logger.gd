@@ -418,10 +418,11 @@ static func pad_string(string: String, length: int, pad_char: String = " ") -> S
 	return pad + string
 
 class LogRecordFormatter:
-	func format(log_record: Dictionary, raw_message: String) -> String:
+	func format(log_record: Dictionary) -> String:
 		var tag = log_record["tag"]
 		var time_unix = log_record["time_unix"]
 		var level = log_record["level"]
+		var unformatted_message = log_record["unformatted_message"]
 
 		var time_str = Log.format_time(time_unix)
 		var level_str = Log.get_short_level_name(level)
@@ -429,7 +430,7 @@ class LogRecordFormatter:
 			time_str,
 			Log.pad_string(tag, 15),
 			level_str,
-			raw_message
+			unformatted_message
 		]
 		if log_record.has("stack"):
 			var stack: Array[Dictionary] = log_record["stack"]
@@ -487,7 +488,7 @@ class LocalLogger extends LogSink:
 		log_record["tag"] = _tag
 		log_record["time_unix"] = Time.get_unix_time_from_system()
 		log_record["unformatted_message"] = message
-		var formatted_message = _log_record_formatter.format(log_record, message)
+		var formatted_message = _log_record_formatter.format(log_record)
 		_sink.write_bulks([log_record], [formatted_message])
 
 	func trace(message: String, stack_depth: int = 1, stack_hint: int = 1) -> void:
