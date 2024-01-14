@@ -62,8 +62,20 @@ static func format_session(session: int)	-> String:
 
 static func format_time(unix_time: float) -> String:
 	var time: Dictionary = Time.get_datetime_dict_from_unix_time(unix_time)
-	var time_str = "%02d/%s/%02d_%02d:%02d:%02d" % [
+	var time_str = "%02d/%s/%02d %02d:%02d:%02d" % [
 		time["year"] % 100,
+		format_month(time["month"]),
+		time["day"],
+		time["hour"],
+		time["minute"],
+		time["second"],
+	]
+	return time_str
+
+static func format_time_for_filename(unix_time: float) -> String:
+	var time: Dictionary = Time.get_datetime_dict_from_unix_time(unix_time)
+	var time_str = "%04d-%s-%02d_%02dH-%02dM-%02dS" % [
+		time["year"],
 		format_month(time["month"]),
 		time["day"],
 		time["hour"],
@@ -128,7 +140,7 @@ class BufferedSink extends LogSink:
 	## [param buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
 	##
 	## The buffer size is the number of messages that will be buffered before being flushed to the sink.
-	func _init(sink: LogSink, buffer_size: int) -> void:
+	func _init(sink: LogSink, buffer_size: int = 42) -> void:
 		if buffer_size < 0:
 			buffer_size = 0
 			printerr("BufferedSink: Buffer size must be equal or greater than 0.")
@@ -171,6 +183,7 @@ class DirSink extends LogSink:
 
 	var _current_file: FileAccess
 	var _current_file_size: int
+	var _file_count: int = 0
 
 	var _last_dir_listing: Array = []
 
@@ -179,13 +192,22 @@ class DirSink extends LogSink:
 
 	func _init(log_name: String, dir_path: String, max_file_size: int = 4042, max_file_count: int = 10) -> void:
 		_log_name = log_name
-		_dir_path = _validate_dir(dir_path)
+		if dir_path.begins_with("user://") or dir_path.begins_with("res://"):
+			dir_path = ProjectSettings.globalize_path(dir_path)
+		var dir_path_t = _validate_dir(dir_path)
+		if dir_path_t:
+			_dir_path = dir_path_t
 		self._max_file_size = max_file_size
 		self._max_file_count = max_file_count
 
 	func _validate_dir(dir_path: String) -> Variant:
 		if not (dir_path.is_absolute_path() or dir_path.is_relative_path()):
 			printerr("DirSink: dir_path must be an absolute or relative path. '%s'" % dir_path)
+			return null
+		var dir = DirAccess.open(".")
+		dir.make_dir_recursive(dir_path)
+		if not dir.dir_exists(dir_path):
+			printerr("DirSink: dir_path does not exist. '%s'" % dir_path)
 			return null
 		return dir_path
 
@@ -221,11 +243,13 @@ class DirSink extends LogSink:
 		return a_time > b_time
 
 	func _generate_filename() -> String:
-		var filename = "log_%s_%s_%d.log" % [
+		var filename = "log_%s_%s_%d_%d.log" % [
 			_log_name,
-			Logger.format_time(Time.get_unix_time_from_system()),
-			_session_id
+			Logger.format_time_for_filename(Time.get_unix_time_from_system()),
+			_session_id,
+			_file_count
 		]
+		filename = filename.replace(" ", "_").replace("/", "-").replace(":", "-")
 		return filename
 
 	func _cleanup_old_files() -> void:
@@ -249,12 +273,16 @@ class DirSink extends LogSink:
 			_open_new_file()
 		if _current_file_size >= _max_file_size:
 			_open_new_file()
+		if not _current_file:
+			return
 		var log_message = formatted_message + "\n"
 		# only approximate size utf8
 		_current_file_size += log_message.length()
 		_current_file.store_string(log_message)
 
 	func _open_new_file() -> void:
+		if not _dir_path:
+			return
 		if _current_file:
 			_current_file.close()
 
@@ -267,8 +295,9 @@ class DirSink extends LogSink:
 		_current_file_size = 0
 
 		if not _current_file:
-			printerr("DirSink: Failed to open file '%s'." % path)
+			printerr("DirSink: Failed to open new log file '%s'." % path)
 			return
+		_file_count += 1
 
 class MemoryWindowSink extends LogSink:
 	var _max_lines: int

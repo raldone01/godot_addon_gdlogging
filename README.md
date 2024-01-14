@@ -3,8 +3,11 @@
 ## Usage
 
 ```gdscript
-Logger.add_sink(Logger.DirSink.new("MyLog", "res://log"))
 Logger.add_sink(Logger.ConsoleSink.new())
+var dir_sink = Logger.DirSink.new("mylog", "res://logs", 8000, 5)
+var buffered_sink = Logger.BufferedSink.new(dir_sink, 20000)
+var filtered_sink = Logger.FilteringSink.new(buffered_sink, Logger.LogLevel.DEBUG)
+Logger.add_sink(filtered_sink)
 Logger.debug("Hello World")                                 # Outputs: [24/Jan/13_22:59:12] [         Global] [DBG] Hello World
 Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [24/Jan/13_22:59:12] [        MyClass] [DBG] Hello World
 Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [24/Jan/13_22:59:12] [         Global] [INF] File: Not found error.
