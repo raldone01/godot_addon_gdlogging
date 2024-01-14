@@ -121,6 +121,7 @@ class FilteringSink extends LogSink:
 		_sink.flush_buffer()
 
 	func close() -> void:
+		flush_buffer()
 		_sink.close()
 
 class BroadcastSink extends LogSink:
@@ -141,6 +142,7 @@ class BroadcastSink extends LogSink:
 			sink.flush_buffer()
 
 	func close() -> void:
+		flush_buffer()
 		for sink in _sinks:
 			sink.close()
 
@@ -149,7 +151,6 @@ class BufferedSink extends LogSink:
 
 	var _buffer_log_records: Array[Dictionary] = []
 	var _buffer_formatted_messages: PackedStringArray = PackedStringArray()
-	var _buffer_cnt = 0
 	var _buffer_size = 0
 	var _last_buffer_write_out_time_usec = 0
 
@@ -171,7 +172,8 @@ class BufferedSink extends LogSink:
 
 	func _write_bulks_buffered() -> void:
 		_sink.write_bulks(_buffer_log_records, _buffer_formatted_messages)
-		_buffer_cnt = 0
+		_buffer_log_records.clear()
+		_buffer_formatted_messages.clear()
 		_last_buffer_write_out_time_usec = Time.get_ticks_usec()
 
 	func flush_buffer() -> void:
@@ -184,9 +186,8 @@ class BufferedSink extends LogSink:
 			return
 		_buffer_log_records.append_array(log_records)
 		_buffer_formatted_messages.append_array(formatted_messages)
-		_buffer_cnt += log_records.size()
 		var max_wait_exceeded = Time.get_ticks_usec() - _last_buffer_write_out_time_usec > _buffer_flush_interval_usec
-		if (_buffer_cnt >= _buffer_size) \
+		if (_buffer_log_records.size() >= _buffer_size) \
 			or max_wait_exceeded:
 			_write_bulks_buffered()
 			if max_wait_exceeded:
@@ -229,7 +230,6 @@ class DirSink extends LogSink:
 
 	var _io_thread: Thread
 	var _io_thread_formatted_messages: PackedStringArray = PackedStringArray()
-	var _io_thread_formatted_messages_size: int = 0
 	var _io_thread_log_lock: Mutex = Mutex.new()
 	var _io_thread_work_semaphore: Semaphore = Semaphore.new()
 	var _io_thread_exit: bool = false
@@ -318,15 +318,24 @@ class DirSink extends LogSink:
 		_io_thread_flush_buffer = true
 		_io_thread_work_semaphore.post()
 
+	func _io_thread_flush_file() -> void:
+		# flush file
+		if _io_thread_flush_buffer:
+			_io_thread_flush_buffer = false
+			if _io_thread_current_file:
+				_io_thread_current_file.flush()
+
 	func _io_thread_main() -> void:
-		var formatted_messages: PackedStringArray
 		while not _io_thread_exit:
 			_io_thread_work_semaphore.wait()
 			_io_thread_log_lock.lock()
-			formatted_messages = _io_thread_formatted_messages.slice(0, _io_thread_formatted_messages_size)
-			_io_thread_formatted_messages_size = 0
+			var log_block: String
+			if _io_thread_formatted_messages.size() > 0:
+				log_block = "\n".join(_io_thread_formatted_messages) + "\n"
+				_io_thread_formatted_messages.clear()
+			else:
+				log_block = ""
 			_io_thread_log_lock.unlock()
-			var log_block: String = _io_thread_concat_messages(formatted_messages)
 			# write formatted message
 			if not _io_thread_current_file:
 				_io_thread_open_new_file()
@@ -335,27 +344,15 @@ class DirSink extends LogSink:
 			# only approximate size utf8
 			_io_thread_current_file_size += log_block.length()
 			_io_thread_current_file.store_string(log_block)
-			# clear temp buffer
-			formatted_messages.clear()
-			# flush file
-			if _io_thread_flush_buffer:
-				_io_thread_flush_buffer = false
-				if _io_thread_current_file:
-					_io_thread_current_file.flush()
+			_io_thread_flush_file()
 		# thread exit
+		_io_thread_flush_file()
 		if _io_thread_current_file:
 			_io_thread_current_file.close()
-
-	func _io_thread_concat_messages(formatted_message: PackedStringArray) -> String:
-		var log_block: String = ""
-		for i in range(formatted_message.size()):
-			log_block += formatted_message[i] + "\n"
-		return log_block
 
 	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
 		if _io_thread_log_lock.try_lock():
 			_io_thread_formatted_messages.append_array(formatted_messages)
-			_io_thread_formatted_messages_size += formatted_messages.size()
 			_io_thread_log_lock.unlock()
 			_io_thread_work_semaphore.post()
 
@@ -551,7 +548,7 @@ class LogTimer:
 			return
 
 		if _threshold_msec < elapsed_time_usec / 1000:
-			_logger.log(_level, "Threshold of %d msec exceeded: %s took %f seconds." % [_threshold_msec, _message, elapsed_time_sec])
+			_logger.log(_level, "%s exceeded threshold of %d msec: took %f seconds." % [_message, _threshold_msec, elapsed_time_sec])
 
 var _global_broadcast_sink: BroadcastSink
 var _global_logger: LocalLogger

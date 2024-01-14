@@ -3,17 +3,27 @@
 ## Usage
 
 ```gdscript
-Logger.add_sink(Logger.ConsoleSink.new())
-var dir_sink = Logger.DirSink.new("mylog", "res://logs", 8000, 5)
-var buffered_sink = Logger.BufferedSink.new(dir_sink, 20000)
-var filtered_sink = Logger.FilteringSink.new(buffered_sink, Logger.LogLevel.DEBUG)
-Logger.add_sink(filtered_sink)
-Logger.debug("Hello World")                                 # Outputs: [24/Jan/13_22:59:12] [         Global] [DBG] Hello World
-Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [24/Jan/13_22:59:12] [        MyClass] [DBG] Hello World
-Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [24/Jan/13_22:59:12] [         Global] [INF] File: Not found error.
-var timer = Logger.LogTimer.new("MyTimer")
-function_to_time()
-timer.stop()                                                # Outputs: [24/Jan/13_22:59:15] [        MyTimer] [INF] Function 'function_to_time' took 3.549 seconds.
+Logger.debug("Hello World")
+# [24/Jan/14 13:28:03] [         Global] [DBG] Hello World
+var logger: Logger.LocalLogger = Logger.LocalLogger.new("MyClass")
+logger.debug("Hello World")
+# [24/Jan/14 13:28:03] [        MyClass] [DBG] Hello World
+Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))
+# [24/Jan/14 13:28:03] [         Global] [INF] File: Not found error.
+var timer = Logger.LogTimer.new("MyTimer", 0, logger)
+OS.delay_msec(1111)
+timer.stop()
+# [24/Jan/14 13:28:04] [        MyClass] [INF] MyTimer took 1.111963 seconds.
+const threshold_msec: int = 1000
+timer.set_threshold_msec(threshold_msec)
+timer.start()
+OS.delay_msec(800)
+timer.stop()
+# Prints nothing, because the timer was stopped before the threshold was reached.
+timer.start()
+OS.delay_msec(1111)
+timer.stop()
+# [24/Jan/14 13:28:06] [        MyClass] [INF] MyTimer exceeded threshold of 1000 msec: took 1.111750 seconds.
 ```
 
 ## Sinks
