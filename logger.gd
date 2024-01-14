@@ -393,11 +393,11 @@ func remove_sink(sink: LogSink) -> void:
 func _flush_buffer() -> void:
 	_global_logger.flush_buffer()
 
-func _init():
+func _init() -> void:
 	if Engine.is_editor_hint():
 		add_sink(ConsoleSink.new())
 
-func _exit_tree():
+func _exit_tree() -> void:
 	_flush_buffer()
 
 # https://github.com/KOBUGE-Games/godot-logger/blob/c7e0a3bb8957dfff8dfd3b2f7db511e66360ca1e/logger.gd#L256C1-L310C1
