@@ -76,7 +76,7 @@ static func format_time(unix_time: float) -> String:
 ## All message formatting has already been done by the logger.
 class LogSink:
 	## Writes a string to the sink
-	func write(details: Dictionary, message: String) -> void:
+	func write(log_record: Dictionary, formatted_message: String) -> void:
 		printerr("LogSink: write() not implemented.")
 	func flush_buffer() -> void:
 		printerr("LogSink: flush_buffer() not implemented.")
@@ -89,10 +89,10 @@ class FilteringSink extends LogSink:
 		_sink = sink
 		_level = level
 
-	func write(details: Dictionary, message: String) -> void:
-		var level = details["level"]
+	func write(log_record: Dictionary, formatted_message: String) -> void:
+		var level = log_record["level"]
 		if level >= _level:
-			_sink.write(details, message)
+			_sink.write(log_record, formatted_message)
 
 	func flush_buffer() -> void:
 		_sink.flush_buffer()
@@ -106,9 +106,9 @@ class BroadcastSink extends LogSink:
 	func remove_sink(sink: LogSink) -> void:
 		_sinks.erase(sink)
 
-	func write(details: Dictionary, message: String) -> void:
+	func write(log_record: Dictionary, formatted_message: String) -> void:
 		for sink in _sinks:
-			sink.write(details, message)
+			sink.write(log_record, formatted_message)
 
 	func flush_buffer() -> void:
 		for sink in _sinks:
@@ -117,7 +117,7 @@ class BroadcastSink extends LogSink:
 class BufferedSink extends LogSink:
 	var _sink: LogSink
 
-	var _buffer_details: Array = []
+	var _buffer_log_records: Array = []
 	var _buffer = PackedStringArray()
 	var _buffer_cnt = 0
 	var _buffer_size = 0
@@ -138,28 +138,28 @@ class BufferedSink extends LogSink:
 	## Flushes the buffer to the sink.
 	func flush_buffer() -> void:
 		for i in range(_buffer_cnt):
-			_sink.write(_buffer_details[i], _buffer[i])
+			_sink.write(_buffer_log_records[i], _buffer[i])
 		_buffer_cnt = 0
 		_sink.flush_buffer()
 
 	## Writes a string to the end of the buffer.
-	func write(details: Dictionary, message: String) -> void:
+	func write(log_record: Dictionary, formatted_message: String) -> void:
 		if _buffer_size == 0:
-			_sink.write(details, message)
+			_sink.write(log_record, formatted_message)
 			return
-		_buffer_details.append(details)
-		_buffer.append(message)
+		_buffer_log_records.append(log_record)
+		_buffer.append(formatted_message)
 		_buffer_cnt += 1
 		if _buffer_cnt >= _buffer_size:
 			flush_buffer()
 
 class ConsoleSink extends LogSink:
-	func write(details: Dictionary, message: String) -> void:
-		var level = details["level"]
+	func write(log_record: Dictionary, formatted_message: String) -> void:
+		var level = log_record["level"]
 		if level <= LogLevel.INFO:
-			print(message)
+			print(formatted_message)
 		else:
-			printerr(message)
+			printerr(formatted_message)
 	func flush_buffer() -> void:
 		pass
 
@@ -244,12 +244,12 @@ class DirSink extends LogSink:
 			return
 		_current_file.flush()
 
-	func write(_details: Dictionary, message: String) -> void:
+	func write(_log_record: Dictionary, formatted_message: String) -> void:
 		if not _current_file:
 			_open_new_file()
 		if _current_file_size >= _max_file_size:
 			_open_new_file()
-		var log_message = message + "\n"
+		var log_message = formatted_message + "\n"
 		# only approximate size utf8
 		_current_file_size += log_message.length()
 		_current_file.store_string(log_message)
@@ -277,8 +277,8 @@ class MemoryWindowSink extends LogSink:
 	func _init(max_lines: int = 100) -> void:
 		_max_lines = max_lines
 
-	func write(details: Dictionary, message: String) -> void:
-		_lines.append(message)
+	func write(log_record: Dictionary, formatted_message: String) -> void:
+		_lines.append(formatted_message)
 		if _lines.size() > _max_lines:
 			_lines.remove_at(0)
 
@@ -298,45 +298,53 @@ static func pad_string(string: String, length: int, pad_char: String = " ") -> S
 		pad += pad_char
 	return pad + string
 
-class LocalLogger extends LogSink:
-	var _sink: LogSink
-	var _level: LogLevel
-	var _tag: String
-
-	func _init(tag: String, level: LogLevel = LogLevel.TRACE, sink: LogSink = Logger._global_logger) -> void:
-		_sink = sink
-		_level = level
-		_tag = tag
-
-	static func _format_log_message(details: Dictionary, message: String) -> String:
-		var tag = details["tag"]
-		var time_unix = details["time_unix"]
-		var level = details["level"]
+class LogRecordFormatter:
+	func format(log_record: Dictionary, raw_message: String) -> String:
+		var tag = log_record["tag"]
+		var time_unix = log_record["time_unix"]
+		var level = log_record["level"]
 
 		var time_str = Logger.format_time(time_unix)
 		var level_str = Logger.get_short_level_name(level)
-		var formatted_log_message = "[%s] [%s] [%s] %s" % [
-			Logger.pad_string(tag, 15),
+		var formatted_message = "[%s] [%s] [%s] %s" % [
 			time_str,
+			Logger.pad_string(tag, 15),
 			level_str,
-			message
+			raw_message
 		]
-		if details.has("stack"):
-			var stack: Array[Dictionary] = details["stack"]
+		if log_record.has("stack"):
+			var stack: Array[Dictionary] = log_record["stack"]
 			for frame in stack:
 				var source = frame["source"]
 				var line = frame["line"]
 				var function = frame["function"]
-				formatted_log_message += "\n\tAt: %s:%d:%s()" % [
+				formatted_message += "\n\tAt: %s:%d:%s()" % [
 					source,
 					line,
 					function
 				]
-		return formatted_log_message
+		return formatted_message
+
+class LocalLogger extends LogSink:
+	var _tag: String
+	var _log_record_formatter: LogRecordFormatter
+	var _level: LogLevel
+	var _sink: LogSink
+
+	func _init(
+		tag: String,
+		level: LogLevel = LogLevel.TRACE,
+		log_record_formatter: LogRecordFormatter = LogRecordFormatter.new(),
+		sink: LogSink = Logger._global_logger
+	) -> void:
+		_tag = tag
+		_log_record_formatter = log_record_formatter
+		_level = level
+		_sink = sink
 
 	# Write will not format the message, it will just pass it to the underlying sink.
-	func write(details: Dictionary, message: String) -> void:
-		_sink.write(details, message)
+	func write(log_record: Dictionary, formatted_message: String) -> void:
+		_sink.write(log_record, formatted_message)
 
 	func flush_buffer() -> void:
 		_sink.flush_buffer()
@@ -350,23 +358,26 @@ class LocalLogger extends LogSink:
 	func get_level() -> LogLevel:
 		return _level
 
-	func log(level: LogLevel, message: String, details: Dictionary = {}) -> void:
+	func set_log_record_formatter(log_record_formatter: LogRecordFormatter) -> void:
+		_log_record_formatter = log_record_formatter
+
+	func log(level: LogLevel, message: String, log_record: Dictionary = {}) -> void:
 		if level < _level:
 			return
-		details["level"] = level
-		details["tag"] = _tag
-		details["time_unix"] = Time.get_unix_time_from_system()
-		details["unformatted_message"] = message
-		var formatted_log_message = _format_log_message(details, message)
-		_sink.write(details, formatted_log_message)
+		log_record["level"] = level
+		log_record["tag"] = _tag
+		log_record["time_unix"] = Time.get_unix_time_from_system()
+		log_record["unformatted_message"] = message
+		var formatted_message = _log_record_formatter.format(log_record, message)
+		_sink.write(log_record, formatted_message)
 
 	func trace(message: String, stack_depth: int = 1, stack_hint: int = 1) -> void:
-		var details: Dictionary = {}
+		var log_record: Dictionary = {}
 		if OS.is_debug_build():
 			var stack: Array[Dictionary] = get_stack()
 			var stack_slice = stack.slice(stack_hint, stack_depth + stack_hint)
-			details["stack"] = stack_slice
-		self.log(LogLevel.TRACE, message, details)
+			log_record["stack"] = stack_slice
+		self.log(LogLevel.TRACE, message, log_record)
 
 	func debug(message: String) -> void:
 		self.log(LogLevel.DEBUG, message)
@@ -385,7 +396,7 @@ var _global_logger: LocalLogger
 
 func _init() -> void:
 	_global_broadcast_sink = BroadcastSink.new()
-	_global_logger = LocalLogger.new("Global", LogLevel.TRACE, _global_broadcast_sink)
+	_global_logger = LocalLogger.new("Global", LogLevel.TRACE, LogRecordFormatter.new(), _global_broadcast_sink)
 	if Engine.is_editor_hint():
 		add_sink(ConsoleSink.new())
 
@@ -412,6 +423,9 @@ func set_level(level: LogLevel) -> void:
 
 func get_level() -> LogLevel:
 	return _global_logger.get_level()
+
+func set_log_record_formatter(log_record_formatter: LogRecordFormatter) -> void:
+	_global_logger.set_log_record_formatter(log_record_formatter)
 
 func add_sink(sink: LogSink) -> void:
 	_global_broadcast_sink.add_sink(sink)

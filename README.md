@@ -5,9 +5,9 @@
 ```gdscript
 Logger.add_sink(Logger.DirSink.new("MyLog", "res://log"))
 Logger.add_sink(Logger.ConsoleSink.new())
-Logger.debug("Hello World")                                 # Outputs: [         Global] [24/Jan/13_22:59:12] [DBG] Hello World
-Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [        MyClass] [24/Jan/13_22:59:12] [DBG] Hello World
-Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [         Global] [24/Jan/13_22:59:12] [INF] File: Not found error.
+Logger.debug("Hello World")                                 # Outputs: [24/Jan/13_22:59:12] [         Global] [DBG] Hello World
+Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [24/Jan/13_22:59:12] [        MyClass] [DBG] Hello World
+Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [24/Jan/13_22:59:12] [         Global] [INF] File: Not found error.
 ```
 
 ## Sinks
@@ -22,11 +22,30 @@ Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [        
 
 ## Log Levels
 
-* `Logger.TRACE`: Prints call site in debug builds. The stack depth can be configured per call.
+* `Logger.TRACE`: Prints the call site in debug builds. The stack depth can be configured per call.
 * `Logger.DEBUG`: Debug messages
 * `Logger.INFO`: Informational messages
 * `Logger.WARN`: Warnings
 * `Logger.ERROR`: Errors
+
+## Custom Formatters
+
+```gdscript
+class MyLogRecordFormatter extends Logger.LogRecordFormatter:
+	func format(log_record: Dictionary, raw_message: String) -> String:
+		var time_unix = log_record["time_unix"]
+		var level = log_record["level"]
+
+		var time_str = Time.get_date_string_from_unix_time(time_unix)
+		var level_str = Logger.get_level_name(level)
+		var formatted_message = "[%s] [%s] %s" % [
+			time_str,
+      level_str,
+			raw_message
+		]
+		return formatted_message
+set_log_record_formatter(MyLogRecordFormatter.new())
+```
 
 ## Installation
 
