@@ -4,6 +4,7 @@
 
 ```gdscript
 Logger.add_sink(Logger.DirSink.new("MyLog", "res://log"))
+Logger.add_sink(Logger.ConsoleSink.new())
 Logger.debug("Hello World")                                 # Outputs: [         Global] [24/Jan/13_22:59:12] [DBG] Hello World
 Logger.LocalLogger("MyClass").debug("Hello World")          # Outputs: [        MyClass] [24/Jan/13_22:59:12] [DBG] Hello World
 Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [         Global] [24/Jan/13_22:59:12] [INF] File: Not found error.
@@ -18,6 +19,14 @@ Logger.info(Logger.format_error(ERR_FILE_NOT_FOUND))        # Outputs: [        
 * `DirSink`: Outputs messages to a log files and rotates them
 * `LocalLogger`: Can receive messages from other LocalLoggers and Sinks. Users will call the log functions which format the message.
 * `MemoryWindowSink: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
+
+## Log Levels
+
+* `Logger.TRACE`: Prints call site in debug builds. The stack depth can be configured per call.
+* `Logger.DEBUG`: Debug messages
+* `Logger.INFO`: Informational messages
+* `Logger.WARN`: Warnings
+* `Logger.ERROR`: Errors
 
 ## Installation
 

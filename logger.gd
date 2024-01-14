@@ -4,19 +4,22 @@
 extends Node
 
 enum LogLevel {
-	DEBUG = 0,
-	INFO = 1,
-	WARNING = 2,
-	ERROR = 3,
+	TRACE = 0,
+	DEBUG,
+	INFO,
+	WARNING,
+	ERROR,
 	MAX,
 }
 
+const TRACE = LogLevel.TRACE
 const DEBUG = LogLevel.DEBUG
 const INFO = LogLevel.INFO
 const WARNING = LogLevel.WARNING
 const ERROR = LogLevel.ERROR
 
 const LEVEL_NAMES = [
+	"TRACE",
 	"DEBUG",
 	"INFO",
 	"WARNING",
@@ -27,6 +30,7 @@ func get_level_name(level: LogLevel) -> String:
 	return LEVEL_NAMES[level]
 
 const SHORT_LEVEL_NAMES = [
+	"TRC",
 	"DBG",
 	"INF",
 	"WRN",
@@ -152,13 +156,9 @@ class BufferedSink extends LogSink:
 class ConsoleSink extends LogSink:
 	func write(details: Dictionary, message: String) -> void:
 		var level = details["level"]
-		if level == LogLevel.DEBUG:
-			print_debug(message)
-		elif level == LogLevel.INFO:
+		if level <= LogLevel.INFO:
 			print(message)
-		elif level == LogLevel.WARNING:
-			print(message)
-		elif level == LogLevel.ERROR:
+		else:
 			printerr(message)
 	func flush_buffer() -> void:
 		pass
@@ -303,7 +303,7 @@ class LocalLogger extends LogSink:
 	var _level: LogLevel
 	var _tag: String
 
-	func _init(tag: String, level: LogLevel = LogLevel.DEBUG, sink: LogSink = Logger._global_logger) -> void:
+	func _init(tag: String, level: LogLevel = LogLevel.TRACE, sink: LogSink = Logger._global_logger) -> void:
 		_sink = sink
 		_level = level
 		_tag = tag
@@ -321,6 +321,17 @@ class LocalLogger extends LogSink:
 			level_str,
 			message
 		]
+		if details.has("stack"):
+			var stack: Array[Dictionary] = details["stack"]
+			for frame in stack:
+				var source = frame["source"]
+				var line = frame["line"]
+				var function = frame["function"]
+				formatted_log_message += "\n\tAt: %s:%d:%s()" % [
+					source,
+					line,
+					function
+				]
 		return formatted_log_message
 
 	# Write will not format the message, it will just pass it to the underlying sink.
@@ -339,17 +350,23 @@ class LocalLogger extends LogSink:
 	func get_level() -> LogLevel:
 		return _level
 
-	func log(level: LogLevel, message: String) -> void:
+	func log(level: LogLevel, message: String, details: Dictionary = {}) -> void:
 		if level < _level:
 			return
-		var details: Dictionary = {
-			"level": level,
-			"tag": _tag,
-			"time_unix": Time.get_unix_time_from_system(),
-			"unformatted_message": message,
-		}
+		details["level"] = level
+		details["tag"] = _tag
+		details["time_unix"] = Time.get_unix_time_from_system()
+		details["unformatted_message"] = message
 		var formatted_log_message = _format_log_message(details, message)
 		_sink.write(details, formatted_log_message)
+
+	func trace(message: String, stack_depth: int = 1, stack_hint: int = 1) -> void:
+		var details: Dictionary = {}
+		if OS.is_debug_build():
+			var stack: Array[Dictionary] = get_stack()
+			var stack_slice = stack.slice(stack_hint, stack_depth + stack_hint)
+			details["stack"] = stack_slice
+		self.log(LogLevel.TRACE, message, details)
 
 	func debug(message: String) -> void:
 		self.log(LogLevel.DEBUG, message)
@@ -363,8 +380,20 @@ class LocalLogger extends LogSink:
 	func error(message: String) -> void:
 		self.log(LogLevel.ERROR, message)
 
-var _global_broadcast_sink: BroadcastSink = BroadcastSink.new()
-var _global_logger: LocalLogger = LocalLogger.new("Global", LogLevel.DEBUG, _global_broadcast_sink)
+var _global_broadcast_sink: BroadcastSink
+var _global_logger: LocalLogger
+
+func _init() -> void:
+	_global_broadcast_sink = BroadcastSink.new()
+	_global_logger = LocalLogger.new("Global", LogLevel.TRACE, _global_broadcast_sink)
+	if Engine.is_editor_hint():
+		add_sink(ConsoleSink.new())
+
+func _exit_tree() -> void:
+	_flush_buffer()
+
+func trace(message: String, stack_depth: int = 1, stack_hint: int = 2) -> void:
+	_global_logger.trace(message, stack_depth, stack_hint)
 
 func debug(message: String) -> void:
 	_global_logger.debug(message)
@@ -392,13 +421,6 @@ func remove_sink(sink: LogSink) -> void:
 
 func _flush_buffer() -> void:
 	_global_logger.flush_buffer()
-
-func _init() -> void:
-	if Engine.is_editor_hint():
-		add_sink(ConsoleSink.new())
-
-func _exit_tree() -> void:
-	_flush_buffer()
 
 # https://github.com/KOBUGE-Games/godot-logger/blob/c7e0a3bb8957dfff8dfd3b2f7db511e66360ca1e/logger.gd#L256C1-L310C1
 # BEGIN LICENSE MIT: `LICENSE-godot-logger.md`
