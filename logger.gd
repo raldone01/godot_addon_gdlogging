@@ -27,8 +27,8 @@ const LEVEL_NAMES = [
 ]
 
 ## Returns the full name of a log level.
-static func format_log_level_name(level: LogLevel) -> String:
-	return LEVEL_NAMES[level]
+static func format_log_level_name(p_level: LogLevel) -> String:
+	return LEVEL_NAMES[p_level]
 
 const LEVEL_NAMES_SHORT = [
 	"TRC",
@@ -39,11 +39,11 @@ const LEVEL_NAMES_SHORT = [
 ]
 
 ## Returns a three letter abbreviation of a log level.
-static func format_log_level_name_short(level: LogLevel) -> String:
-	return LEVEL_NAMES_SHORT[level]
+static func format_log_level_name_short(p_level: LogLevel) -> String:
+	return LEVEL_NAMES_SHORT[p_level]
 
 ## Returns a three letter abbreviation of a month.
-static func format_month_short(month: int) -> String:
+static func format_month_short(p_month: int) -> String:
 	const month_names = [
 		"Jan",
 		"Feb",
@@ -58,16 +58,16 @@ static func format_month_short(month: int) -> String:
 		"Nov",
 		"Dec",
 	]
-	return month_names[month - 1]
+	return month_names[p_month - 1]
 
 ## Formats the session id number to a string truncated to 4 digits.
-static func format_session_id(session_id: int)	-> String:
-	return "%04d" % session_id
+static func format_session_id(p_session_id: int)	-> String:
+	return "%04d" % p_session_id
 
 ## Formats a unix timestamp to a string.
 ## The default formatter uses this format.
-static func format_time_default(unix_time: float) -> String:
-	var time := Time.get_datetime_dict_from_unix_time(unix_time)
+static func format_time_default(p_unix_time: float) -> String:
+	var time := Time.get_datetime_dict_from_unix_time(p_unix_time)
 	var time_str := "%02d/%s/%02d %02d:%02d:%02d" % [
 		time["year"] % 100,
 		format_month_short(time["month"]),
@@ -80,8 +80,8 @@ static func format_time_default(unix_time: float) -> String:
 
 ## Formats a unix timestamp to a string.
 ## The [DirSink] uses this format.
-static func format_time_default_for_filename(unix_time: float) -> String:
-	var time := Time.get_datetime_dict_from_unix_time(unix_time)
+static func format_time_default_for_filename(p_unix_time: float) -> String:
+	var time := Time.get_datetime_dict_from_unix_time(p_unix_time)
 	var time_str := "%04d-%s-%02d_%02dH-%02dM-%02dS" % [
 		time["year"],
 		format_month_short(time["month"]),
@@ -96,7 +96,7 @@ static func format_time_default_for_filename(unix_time: float) -> String:
 ## All message formatting has already been done by the logger.
 class LogSink:
 	## Write many log records to the sink
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		Log._logger_direct_console.warning("LogSink: write_bulks() not implemented.")
 	## Flushes the buffer of the sink if it has one.
 	func flush_buffer() -> void:
@@ -109,16 +109,16 @@ class FilteringSink extends LogSink:
 	var _sink: LogSink
 	var _level: LogLevel
 
-	func _init(sink: LogSink, level: LogLevel) -> void:
-		_sink = sink
-		_level = level
+	func _init(p_sink: LogSink, p_level: LogLevel) -> void:
+		_sink = p_sink
+		_level = p_level
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		var filtered_log_records: Array[Dictionary] = []
 		var filtered_formatted_messages := PackedStringArray()
-		for i in range(log_records.size()):
-			var log_record := log_records[i]
-			var formatted_message := formatted_messages[i]
+		for i in range(p_log_records.size()):
+			var log_record := p_log_records[i]
+			var formatted_message := p_formatted_messages[i]
 			var level: LogLevel = log_record["level"]
 			if level >= _level:
 				filtered_log_records.append(log_record)
@@ -135,15 +135,15 @@ class FilteringSink extends LogSink:
 class BroadcastSink extends LogSink:
 	var _sinks: Array[LogSink] = []
 
-	func add_sink(sink: LogSink) -> void:
-		_sinks.append(sink)
+	func add_sink(p_sink: LogSink) -> void:
+		_sinks.append(p_sink)
 
-	func remove_sink(sink: LogSink) -> void:
-		_sinks.erase(sink)
+	func remove_sink(p_sink: LogSink) -> void:
+		_sinks.erase(p_sink)
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		for sink in _sinks:
-			sink.write_bulks(log_records, formatted_messages)
+			sink.write_bulks(p_log_records, p_formatted_messages)
 
 	func flush_buffer() -> void:
 		for sink in _sinks:
@@ -171,12 +171,12 @@ class BufferedSink extends LogSink:
 	## [param buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
 	##
 	## The buffer size is the number of messages that will be buffered before being flushed to the sink.
-	func _init(sink: LogSink, buffer_size: int = 42) -> void:
-		if buffer_size < 0:
-			buffer_size = 0
+	func _init(p_sink: LogSink, p_buffer_size: int = 42) -> void:
+		if p_buffer_size < 0:
+			p_buffer_size = 0
 			Log._logger_direct_console.warning("BufferedSink: Buffer size must be equal or greater than 0.")
-		_buffer_size = buffer_size
-		_sink = sink
+		_buffer_size = p_buffer_size
+		_sink = p_sink
 
 	func _write_bulks_buffered() -> void:
 		_sink.write_bulks(_buffer_log_records, _buffer_formatted_messages)
@@ -188,15 +188,15 @@ class BufferedSink extends LogSink:
 		_write_bulks_buffered()
 		_sink.flush_buffer()
 
-	func set_buffer_flush_interval_msec(buffer_flush_interval_msec: int) -> void:
-		_buffer_flush_interval_usec = buffer_flush_interval_msec * 1000
+	func set_buffer_flush_interval_msec(p_buffer_flush_interval_msec: int) -> void:
+		_buffer_flush_interval_usec = p_buffer_flush_interval_msec * 1000
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		if _buffer_size == 0:
-			_sink.write_bulks(log_records, formatted_messages)
+			_sink.write_bulks(p_log_records, p_formatted_messages)
 			return
-		_buffer_log_records.append_array(log_records)
-		_buffer_formatted_messages.append_array(formatted_messages)
+		_buffer_log_records.append_array(p_log_records)
+		_buffer_formatted_messages.append_array(p_formatted_messages)
 		var max_wait_exceeded := Time.get_ticks_usec() - _last_buffer_write_out_time_usec > _buffer_flush_interval_usec
 		if (_buffer_log_records.size() >= _buffer_size) \
 			or max_wait_exceeded:
@@ -211,10 +211,10 @@ class BufferedSink extends LogSink:
 
 class ConsoleSink extends LogSink:
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
-		for i in range(formatted_messages.size()):
-			var log_record := log_records[i]
-			var formatted_message := formatted_messages[i]
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+		for i in range(p_formatted_messages.size()):
+			var log_record := p_log_records[i]
+			var formatted_message := p_formatted_messages[i]
 			var level: LogLevel = log_record["level"]
 			if level <= LogLevel.INFO:
 				print(formatted_message)
@@ -247,34 +247,34 @@ class DirSink extends LogSink:
 	var _io_thread_exit := false
 	var _io_thread_flush_buffer := false
 
-	func _init(log_name: String, dir_path: String, max_file_size: int = 4042, max_file_count: int = 10) -> void:
-		_log_name = log_name
-		if dir_path.begins_with("user://") or dir_path.begins_with("res://"):
-			dir_path = ProjectSettings.globalize_path(dir_path)
-		if _is_dir_valid(dir_path):
-			_dir_path = dir_path
-		self._max_file_size = max_file_size
-		self._max_file_count = max_file_count
+	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int = 4042, p_max_file_count: int = 10) -> void:
+		_log_name = p_log_name
+		if p_dir_path.begins_with("user://") or p_dir_path.begins_with("res://"):
+			p_dir_path = ProjectSettings.globalize_path(p_dir_path)
+		if _is_dir_valid(p_dir_path):
+			_dir_path = p_dir_path
+		self._max_file_size = p_max_file_size
+		self._max_file_count = p_max_file_count
 
 		_io_thread = Thread.new()
 		_io_thread.start(self._io_thread_main, Thread.PRIORITY_LOW)
 
-	func _is_dir_valid(dir_path: String) -> bool:
-		if not (dir_path.is_absolute_path() or dir_path.is_relative_path()):
-			Log._logger_direct_console.error("DirSink: dir_path must be an absolute or relative path. '%s'" % dir_path)
+	func _is_dir_valid(p_dir_path: String) -> bool:
+		if not (p_dir_path.is_absolute_path() or p_dir_path.is_relative_path()):
+			Log._logger_direct_console.error("DirSink: p_dir_path must be an absolute or relative path. '%s'" % p_dir_path)
 			return false
 		var dir := DirAccess.open(".")
-		dir.make_dir_recursive(dir_path)
-		if not dir.dir_exists(dir_path):
-			Log._logger_direct_console.error("DirSink: dir_path does not exist. '%s'" % dir_path)
+		dir.make_dir_recursive(p_dir_path)
+		if not dir.dir_exists(p_dir_path):
+			Log._logger_direct_console.error("DirSink: p_dir_path does not exist. '%s'" % p_dir_path)
 			return false
 		return true
 
-	func _is_log_file(filename: String) -> bool:
+	func _is_log_file(p_filename: String) -> bool:
 		var prefix := "log_%s_" % _log_name
-		if not filename.begins_with(prefix):
+		if not p_filename.begins_with(prefix):
 			return false
-		if not filename.ends_with(".log"):
+		if not p_filename.ends_with(".log"):
 			return false
 		return true
 
@@ -294,9 +294,9 @@ class DirSink extends LogSink:
 		dir_list.list_dir_end()
 
 	## Descending order: oldest last
-	func _compare_file_modification_time(a: String, b: String) -> int:
-		var a_path := _dir_path + "/" + a
-		var b_path := _dir_path + "/" + b
+	func _compare_file_modification_time(p_filename_a: String, p_filename_b: String) -> int:
+		var a_path := _dir_path + "/" + p_filename_a
+		var b_path := _dir_path + "/" + p_filename_b
 		var a_time := FileAccess.get_modified_time(a_path)
 		var b_time := FileAccess.get_modified_time(b_path)
 		return a_time > b_time
@@ -361,9 +361,9 @@ class DirSink extends LogSink:
 		if _io_thread_current_file:
 			_io_thread_current_file.close()
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		if _io_thread_log_lock.try_lock():
-			_io_thread_formatted_messages.append_array(formatted_messages)
+			_io_thread_formatted_messages.append_array(p_formatted_messages)
 			_io_thread_log_lock.unlock()
 			_io_thread_work_semaphore.post()
 
@@ -399,12 +399,12 @@ class MemoryWindowSink extends LogSink:
 	var _formatted_messages := PackedStringArray()
 	var _log_records: Array[Dictionary] = []
 
-	func _init(max_lines: int = 100) -> void:
-		_max_lines = max_lines
+	func _init(p_max_lines: int = 100) -> void:
+		_max_lines = p_max_lines
 
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
-		_formatted_messages.append_array(formatted_messages)
-		_log_records.append_array(log_records)
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+		_formatted_messages.append_array(p_formatted_messages)
+		_log_records.append_array(p_log_records)
 		while _formatted_messages.size() > _max_lines:
 			_formatted_messages.remove_at(0)
 			_log_records.remove_at(0)
@@ -419,21 +419,21 @@ class MemoryWindowSink extends LogSink:
 		}
 
 ## Left pads a string with a character to a given length.
-static func pad_string(string: String, length: int, pad_char: String = " ") -> String:
-	var pad_length := length - string.length()
+static func pad_string(p_string: String, p_length: int, p_pad_char: String = " ") -> String:
+	var pad_length := p_length - p_string.length()
 	if pad_length <= 0:
-		return string
+		return p_string
 	var pad := ""
 	for i in range(pad_length):
-		pad += pad_char
-	return pad + string
+		pad += p_pad_char
+	return pad + p_string
 
 class LogRecordFormatter:
-	func format(log_record: Dictionary) -> String:
-		var tag: String = log_record["tag"]
-		var time_unix: float = log_record["time_unix"]
-		var level: LogLevel = log_record["level"]
-		var unformatted_message: String = log_record["unformatted_message"]
+	func format(p_log_record: Dictionary) -> String:
+		var tag: String = p_log_record["tag"]
+		var time_unix: float = p_log_record["time_unix"]
+		var level: LogLevel = p_log_record["level"]
+		var unformatted_message: String = p_log_record["unformatted_message"]
 
 		var time_str := Log.format_time_default(time_unix)
 		var level_str := Log.format_log_level_name_short(level)
@@ -443,8 +443,8 @@ class LogRecordFormatter:
 			level_str,
 			unformatted_message
 		]
-		if log_record.has("stack"):
-			var stack: Array[Dictionary] = log_record["stack"]
+		if p_log_record.has("stack"):
+			var stack: Array[Dictionary] = p_log_record["stack"]
 			for frame in stack:
 				var source: String = frame["source"]
 				var line: String = frame["line"]
@@ -463,19 +463,19 @@ class Logger extends LogSink:
 	var _sink: LogSink
 
 	func _init(
-		tag: String,
-		level: LogLevel = LogLevel.TRACE,
-		log_record_formatter: LogRecordFormatter = Log._global_logger._log_record_formatter,
-		sink: LogSink = Log._global_logger
+		p_tag: String,
+		p_level: LogLevel = LogLevel.TRACE,
+		p_log_record_formatter: LogRecordFormatter = Log._global_logger._log_record_formatter,
+		p_sink: LogSink = Log._global_logger
 	) -> void:
-		_tag = tag
-		_log_record_formatter = log_record_formatter
-		_level = level
-		_sink = sink
+		_tag = p_tag
+		_log_record_formatter = p_log_record_formatter
+		_level = p_level
+		_sink = p_sink
 
 	## Write will not format the message, it will just pass it to the underlying sink.
-	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
-		_sink.write_bulks(log_records, formatted_messages)
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+		_sink.write_bulks(p_log_records, p_formatted_messages)
 
 	func flush_buffer() -> void:
 		_sink.flush_buffer()
@@ -483,44 +483,44 @@ class Logger extends LogSink:
 	func get_tag() -> String:
 		return _tag
 
-	func set_level(level: LogLevel) -> void:
-		_level = level
+	func set_level(p_level: LogLevel) -> void:
+		_level = p_level
 
 	func get_level() -> LogLevel:
 		return _level
 
-	func set_log_record_formatter(log_record_formatter: LogRecordFormatter) -> void:
-		_log_record_formatter = log_record_formatter
+	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+		_log_record_formatter = p_log_record_formatter
 
-	func log(level: LogLevel, message: String, log_record: Dictionary = {}) -> void:
-		if level < _level:
+	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary = {}) -> void:
+		if p_level < _level:
 			return
-		log_record["level"] = level
-		log_record["tag"] = _tag
-		log_record["time_unix"] = Time.get_unix_time_from_system()
-		log_record["unformatted_message"] = message
-		var formatted_message := _log_record_formatter.format(log_record)
-		_sink.write_bulks([log_record], [formatted_message])
+		p_log_record["level"] = p_level
+		p_log_record["tag"] = _tag
+		p_log_record["time_unix"] = Time.get_unix_time_from_system()
+		p_log_record["unformatted_message"] = p_message
+		var formatted_message := _log_record_formatter.format(p_log_record)
+		_sink.write_bulks([p_log_record], [formatted_message])
 
-	func trace(message: String, stack_depth: int = 1, stack_hint: int = 1) -> void:
+	func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 1) -> void:
 		var log_record := {}
 		if OS.is_debug_build():
 			var stack: Array[Dictionary] = get_stack()
-			var stack_slice: Array[Dictionary] = stack.slice(stack_hint, stack_depth + stack_hint)
+			var stack_slice: Array[Dictionary] = stack.slice(p_stack_hint, p_stack_depth + p_stack_hint)
 			log_record["stack"] = stack_slice
-		self.log(LogLevel.TRACE, message, log_record)
+		self.log(LogLevel.TRACE, p_message, log_record)
 
-	func debug(message: String) -> void:
-		self.log(LogLevel.DEBUG, message)
+	func debug(p_message: String) -> void:
+		self.log(LogLevel.DEBUG, p_message)
 
-	func info(message: String) -> void:
-		self.log(LogLevel.INFO, message)
+	func info(p_message: String) -> void:
+		self.log(LogLevel.INFO, p_message)
 
-	func warning(message: String) -> void:
-		self.log(LogLevel.WARNING, message)
+	func warning(p_message: String) -> void:
+		self.log(LogLevel.WARNING, p_message)
 
-	func error(message: String) -> void:
-		self.log(LogLevel.ERROR, message)
+	func error(p_message: String) -> void:
+		self.log(LogLevel.ERROR, p_message)
 
 	func close() -> void:
 		_sink.close()
@@ -535,17 +535,17 @@ class LogTimer:
 	var _message: String
 	var _level: LogLevel = LogLevel.INFO
 
-	func _init(message: String, threshold_msec: int = 0, logger: Logger = Log._global_logger) -> void:
-		_logger = logger
-		_message = message
-		_threshold_msec = threshold_msec
+	func _init(p_message: String, p_threshold_msec: int = 0, p_logger: Logger = Log._global_logger) -> void:
+		_logger = p_logger
+		_message = p_message
+		_threshold_msec = p_threshold_msec
 		_start_time_usec = Time.get_ticks_usec()
 
-	func set_level(level: LogLevel) -> void:
-		_level = level
+	func set_level(p_level: LogLevel) -> void:
+		_level = p_level
 
-	func set_threshold_msec(threshold_msec: int) -> void:
-		_threshold_msec = threshold_msec
+	func set_threshold_msec(p_threshold_msec: int) -> void:
+		_threshold_msec = p_threshold_msec
 
 	func start() -> void:
 		_start_time_usec = Time.get_ticks_usec()
@@ -578,35 +578,35 @@ func _exit_tree() -> void:
 	flush_buffer()
 	_global_logger.close()
 
-func trace(message: String, stack_depth: int = 1, stack_hint: int = 2) -> void:
-	_global_logger.trace(message, stack_depth, stack_hint)
+func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 2) -> void:
+	_global_logger.trace(p_message, p_stack_depth, p_stack_hint)
 
-func debug(message: String) -> void:
-	_global_logger.debug(message)
+func debug(p_message: String) -> void:
+	_global_logger.debug(p_message)
 
-func info(message: String) -> void:
-	_global_logger.info(message)
+func info(p_message: String) -> void:
+	_global_logger.info(p_message)
 
-func warning(message: String) -> void:
-	_global_logger.warning(message)
+func warning(p_message: String) -> void:
+	_global_logger.warning(p_message)
 
-func error(message: String) -> void:
-	_global_logger.error(message)
+func error(p_message: String) -> void:
+	_global_logger.error(p_message)
 
-func set_level(level: LogLevel) -> void:
-	_global_logger.set_level(level)
+func set_level(p_level: LogLevel) -> void:
+	_global_logger.set_level(p_level)
 
 func get_level() -> LogLevel:
 	return _global_logger.get_level()
 
-func set_log_record_formatter(log_record_formatter: LogRecordFormatter) -> void:
-	_global_logger.set_log_record_formatter(log_record_formatter)
+func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+	_global_logger.set_log_record_formatter(p_log_record_formatter)
 
-func add_sink(sink: LogSink) -> void:
-	_global_broadcast_sink.add_sink(sink)
+func add_sink(p_sink: LogSink) -> void:
+	_global_broadcast_sink.add_sink(p_sink)
 
-func remove_sink(sink: LogSink) -> void:
-	_global_broadcast_sink.remove_sink(sink)
+func remove_sink(p_sink: LogSink) -> void:
+	_global_broadcast_sink.remove_sink(p_sink)
 
 func flush_buffer() -> void:
 	_global_logger.flush_buffer()
@@ -670,7 +670,7 @@ const ERROR_MESSAGES = {
 }
 # END LICENSE MIT: LICENSE-godot-logger.md
 
-static func format_error(error: int) -> String:
-	if ERROR_MESSAGES.has(error):
+static func format_error(p_error: int) -> String:
+	if ERROR_MESSAGES.has(p_error):
 		return ERROR_MESSAGES[error]
-	return "Unknown error (%d)." % error
+	return "Unknown p_error (%d)." % p_error
