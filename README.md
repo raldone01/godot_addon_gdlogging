@@ -3,23 +3,23 @@
 ## Usage
 
 ```gdscript
-var console_sink = Log.ConsoleSink.new()
+var console_sink := Log.ConsoleSink.new()
 Log.add_sink(console_sink)
 
-var dir_sink = Log.DirSink.new("mylog", "res://logs", 4042)
-var buffered_sink = Log.BufferedSink.new(dir_sink, 500)
+var dir_sink := Log.DirSink.new("mylog", "res://logs", 4042)
+var buffered_sink := Log.BufferedSink.new(dir_sink, 500)
 # Don't log TRACE messages to the log file
-var file_filtered_sink = Log.FilteringSink.new(buffered_sink, Log.DEBUG)
+var file_filtered_sink := Log.FilteringSink.new(buffered_sink, Log.DEBUG)
 Log.add_sink(file_filtered_sink)
 
 Log.debug("Hello World")
 # [24/Jan/14 13:28:03] [         Global] [DBG] Hello World
-var logger: Log.Logger = Log.Logger.new("MyClass")
+var logger := Log.Logger.new("MyClass")
 logger.debug("Hello World")
 # [24/Jan/14 13:28:03] [        MyClass] [DBG] Hello World
 Log.info(Log.format_error(ERR_FILE_NOT_FOUND))
 # [24/Jan/14 13:28:03] [         Global] [INF] File: Not found error.
-var timer = Log.LogTimer.new("MyTimer", 0, logger)
+var timer := Log.LogTimer.new("MyTimer", 0, logger)
 OS.delay_msec(1111)
 timer.stop()
 # [24/Jan/14 13:28:04] [        MyClass] [INF] MyTimer took 1.111963 seconds.
@@ -58,13 +58,13 @@ timer.stop()
 ```gdscript
 class MyLogRecordFormatter extends Log.LogRecordFormatter:
   func format(log_record: Dictionary, raw_message: String) -> String:
-    var time_unix = log_record["time_unix"]
-    var level = log_record["level"]
-		var unformatted_message = log_record["unformatted_message"]
+    var time_unix: float = log_record["time_unix"]
+    var level: Log.LogLevel = log_record["level"]
+		var unformatted_message: String = log_record["unformatted_message"]
 
-    var time_str = Time.get_date_string_from_unix_time(time_unix)
-    var level_str = Log.get_level_name(level)
-    var formatted_message = "[%s] [%s] %s" % [
+    var time_str: String = Time.get_date_string_from_unix_time(time_unix)
+    var level_str := Log.get_level_name(level)
+    var formatted_message := "[%s] [%s] %s" % [
       time_str,
       level_str,
       unformatted_message
