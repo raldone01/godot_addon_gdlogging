@@ -41,7 +41,7 @@ timer.stop()
 * `BroadcastSink`: Broadcasts messages to multiple sinks.
 * `BufferedSink`: Buffers messages and forwards them to another sink.
 * `ConsoleSink`: Outputs messages to the console.
-* `DirSink`: Outputs messages to a log files and rotates them. Uses a thread for file io.
+* `DirSink`: Outputs messages to log files and rotates them. Uses a thread for file io.
 * `Logger`: Can receive messages from other Loggers and Sinks. Users will call the log functions which format the message.
 * `MemoryWindowSink`: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
 
