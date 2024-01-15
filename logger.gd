@@ -26,10 +26,11 @@ const LEVEL_NAMES = [
 	"ERROR",
 ]
 
-func get_level_name(level: LogLevel) -> String:
+## Returns the full name of a log level.
+static func format_log_level_name(level: LogLevel) -> String:
 	return LEVEL_NAMES[level]
 
-const SHORT_LEVEL_NAMES = [
+const LEVEL_NAMES_SHORT = [
 	"TRC",
 	"DBG",
 	"INF",
@@ -37,10 +38,12 @@ const SHORT_LEVEL_NAMES = [
 	"ERR",
 ]
 
-func get_short_level_name(level: LogLevel) -> String:
-	return SHORT_LEVEL_NAMES[level]
+## Returns a three letter abbreviation of a log level.
+static func format_log_level_name_short(level: LogLevel) -> String:
+	return LEVEL_NAMES_SHORT[level]
 
-static func format_month(month: int) -> String:
+## Returns a three letter abbreviation of a month.
+static func format_month_short(month: int) -> String:
 	const month_names = [
 		"Jan",
 		"Feb",
@@ -57,14 +60,17 @@ static func format_month(month: int) -> String:
 	]
 	return month_names[month - 1]
 
-static func format_session(session: int)	-> String:
-	return "%04d" % session
+## Formats the session id number to a string truncated to 4 digits.
+static func format_session_id(session_id: int)	-> String:
+	return "%04d" % session_id
 
-static func format_time(unix_time: float) -> String:
+## Formats a unix timestamp to a string.
+## The default formatter uses this format.
+static func format_time_default(unix_time: float) -> String:
 	var time := Time.get_datetime_dict_from_unix_time(unix_time)
 	var time_str := "%02d/%s/%02d %02d:%02d:%02d" % [
 		time["year"] % 100,
-		format_month(time["month"]),
+		format_month_short(time["month"]),
 		time["day"],
 		time["hour"],
 		time["minute"],
@@ -72,11 +78,13 @@ static func format_time(unix_time: float) -> String:
 	]
 	return time_str
 
-static func format_time_for_filename(unix_time: float) -> String:
+## Formats a unix timestamp to a string.
+## The [DirSink] uses this format.
+static func format_time_default_for_filename(unix_time: float) -> String:
 	var time := Time.get_datetime_dict_from_unix_time(unix_time)
 	var time_str := "%04d-%s-%02d_%02dH-%02dM-%02dS" % [
 		time["year"],
-		format_month(time["month"]),
+		format_month_short(time["month"]),
 		time["day"],
 		time["hour"],
 		time["minute"],
@@ -89,10 +97,10 @@ static func format_time_for_filename(unix_time: float) -> String:
 class LogSink:
 	## Write many log records to the sink
 	func write_bulks(log_records: Array[Dictionary], formatted_messages: PackedStringArray) -> void:
-		printerr("LogSink: write_bulks() not implemented.")
+		Log._logger_direct_console.warning("LogSink: write_bulks() not implemented.")
 	## Flushes the buffer of the sink if it has one.
 	func flush_buffer() -> void:
-		printerr("LogSink: flush_buffer() not implemented.")
+		Log._logger_direct_console.warning("LogSink: flush_buffer() not implemented.")
 	## Cleans up resources used by the sink.
 	func close() -> void:
 		pass
@@ -166,7 +174,7 @@ class BufferedSink extends LogSink:
 	func _init(sink: LogSink, buffer_size: int = 42) -> void:
 		if buffer_size < 0:
 			buffer_size = 0
-			printerr("BufferedSink: Buffer size must be equal or greater than 0.")
+			Log._logger_direct_console.warning("BufferedSink: Buffer size must be equal or greater than 0.")
 		_buffer_size = buffer_size
 		_sink = sink
 
@@ -253,12 +261,12 @@ class DirSink extends LogSink:
 
 	func _is_dir_valid(dir_path: String) -> bool:
 		if not (dir_path.is_absolute_path() or dir_path.is_relative_path()):
-			printerr("DirSink: dir_path must be an absolute or relative path. '%s'" % dir_path)
+			Log._logger_direct_console.error("DirSink: dir_path must be an absolute or relative path. '%s'" % dir_path)
 			return false
 		var dir := DirAccess.open(".")
 		dir.make_dir_recursive(dir_path)
 		if not dir.dir_exists(dir_path):
-			printerr("DirSink: dir_path does not exist. '%s'" % dir_path)
+			Log._logger_direct_console.error("DirSink: dir_path does not exist. '%s'" % dir_path)
 			return false
 		return true
 
@@ -296,7 +304,7 @@ class DirSink extends LogSink:
 	func _io_thread_generate_filename() -> String:
 		var filename := "log_%s_%s_%d_%d.log" % [
 			_log_name,
-			Log.format_time_for_filename(Time.get_unix_time_from_system()),
+			Log.format_time_default_for_filename(Time.get_unix_time_from_system()),
 			_session_id,
 			_io_thread_file_count
 		]
@@ -375,7 +383,7 @@ class DirSink extends LogSink:
 		_io_thread_current_file_size = 0
 
 		if not _io_thread_current_file:
-			printerr("DirSink: Failed to open new log file '%s'." % path)
+			Log._logger_direct_console.error("DirSink: Failed to open new log file '%s'." % path)
 			return
 		_io_thread_file_count += 1
 
@@ -427,8 +435,8 @@ class LogRecordFormatter:
 		var level: LogLevel = log_record["level"]
 		var unformatted_message: String = log_record["unformatted_message"]
 
-		var time_str := Log.format_time(time_unix)
-		var level_str := Log.get_short_level_name(level)
+		var time_str := Log.format_time_default(time_unix)
+		var level_str := Log.format_log_level_name_short(level)
 		var formatted_message := "[%s] [%s] [%s] %s" % [
 			time_str,
 			Log.pad_string(tag, 15),
@@ -556,10 +564,13 @@ class LogTimer:
 
 var _global_broadcast_sink: BroadcastSink
 var _global_logger: Logger
+var _logger_direct_console: Logger
 
 func _init() -> void:
 	_global_broadcast_sink = BroadcastSink.new()
-	_global_logger = Logger.new("Global", LogLevel.TRACE, LogRecordFormatter.new(), _global_broadcast_sink)
+	var log_formatter := LogRecordFormatter.new()
+	_global_logger = Logger.new("Global", LogLevel.TRACE, log_formatter, _global_broadcast_sink)
+	_logger_direct_console = Logger.new("gdlogging", LogLevel.TRACE, log_formatter, ConsoleSink.new())
 	if Engine.is_editor_hint():
 		add_sink(ConsoleSink.new())
 
@@ -659,7 +670,7 @@ const ERROR_MESSAGES = {
 }
 # END LICENSE MIT: LICENSE-godot-logger.md
 
-func format_error(error: int) -> String:
+static func format_error(error: int) -> String:
 	if ERROR_MESSAGES.has(error):
 		return ERROR_MESSAGES[error]
 	return "Unknown error (%d)." % error
