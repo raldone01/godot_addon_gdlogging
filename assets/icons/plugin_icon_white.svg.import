@@ -2,16 +2,17 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://po10rgq2e66t"
-path="res://.godot/imported/debug_ui_black.png-58e6414da3b4ea553825435ef324b698.ctex"
+uid="uid://cgq13w2s6ciqj"
+path="res://.godot/imported/plugin_icon_white.svg-02f81bbe94957e9d93b8d8d467b310c2.ctex"
 metadata={
+"has_editor_variant": true,
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/gdlogging/assets/icons/debug_ui_black.png"
-dest_files=["res://.godot/imported/debug_ui_black.png-58e6414da3b4ea553825435ef324b698.ctex"]
+source_file="res://addons/gdlogging/assets/icons/plugin_icon_white.svg"
+dest_files=["res://.godot/imported/plugin_icon_white.svg-02f81bbe94957e9d93b8d8d467b310c2.ctex"]
 
 [params]
 
@@ -32,3 +33,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=true
+editor/convert_colors_with_editor_theme=false
