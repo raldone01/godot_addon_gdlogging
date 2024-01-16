@@ -1,0 +1,59 @@
+name: Generate and Deploy Documentation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Clone gdscript-docs-maker
+      run: |
+        git clone https://github.com/GDQuest/gdscript-docs-maker.git
+        cd gdscript-docs-maker
+        git checkout 07cb0d8f0af6da745260d7bfabfc475504c413f1
+        git apply ../.github/workflows/gdscript_docs_maker.patch
+        docker build -t gdscript-docs-maker .
+        cd ..
+
+    - name: Generate Documentation
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/game -v ${{ github.workspace }}/docs/api-md:/output docker.io/library/gdscript-docs-maker /game -o /output
+
+    - name: Fix permissions and create output directory
+      run: |
+        sudo chown -R $USER:$USER docs/
+        mkdir -p docs/api
+
+    - name: Download CSS
+      run: |
+        curl -sL https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css -o docs/api/github-markdown.min.css
+
+    - uses: docker://pandoc/latex:2.9
+      with:
+        args: >-  # allows you to break string into multiple lines
+          --from markdown
+          --to html
+          --standalone
+          --css github-markdown.min.css
+          --output=docs/api/index.tmp.html
+          docs/api-md/logger.gd.md
+
+    - name: Fix body class
+      run: |
+        sudo chown -R $USER:$USER docs/
+        sed 's/<body>/<body class="markdown-body">/g' docs/api/index.tmp.html > docs/api/index.html
+        rm docs/api/index.tmp.html
+
+    - name: Deploy Documentation
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/api

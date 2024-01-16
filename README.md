@@ -1,5 +1,9 @@
 # gdlogging Godot addon
 
+![Doc Gen Badge](https://github.com/raldone01/godot_addon_gdlogging/actions/workflows/generate_docs.yml/badge.svg)
+
+[Documentation](https://raldone01.github.io/godot_addon_gdlogging/)
+
 This is a composable logging addon for version 4 of the [Godot game engine](https://godotengine.org/).
 
 ## Usage
