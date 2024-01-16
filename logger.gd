@@ -188,6 +188,7 @@ class BufferedSink extends LogSink:
 		_write_bulks_buffered()
 		_sink.flush_buffer()
 
+	## Set to 0 to disable interval flushing.
 	func set_buffer_flush_interval_msec(p_buffer_flush_interval_msec: int) -> void:
 		_buffer_flush_interval_usec = p_buffer_flush_interval_msec * 1000
 
@@ -197,7 +198,7 @@ class BufferedSink extends LogSink:
 			return
 		_buffer_log_records.append_array(p_log_records)
 		_buffer_formatted_messages.append_array(p_formatted_messages)
-		var max_wait_exceeded := Time.get_ticks_usec() - _last_buffer_write_out_time_usec > _buffer_flush_interval_usec
+		var max_wait_exceeded := _buffer_flush_interval_usec != 0 and Time.get_ticks_usec() - _last_buffer_write_out_time_usec > _buffer_flush_interval_usec
 		if (_buffer_log_records.size() >= _buffer_size) \
 			or max_wait_exceeded:
 			_write_bulks_buffered()
@@ -417,6 +418,29 @@ class MemoryWindowSink extends LogSink:
 			"formatted_messages": _formatted_messages,
 			"log_records": _log_records,
 		}
+
+class FormattingSink extends LogSink:
+	var _sink: LogSink
+	var _log_record_formatter: LogRecordFormatter
+
+	func _init(p_sink: LogSink, p_log_record_formatter: LogRecordFormatter) -> void:
+		_sink = p_sink
+		_log_record_formatter = p_log_record_formatter
+
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+		var formatted_messages := PackedStringArray()
+		for i in range(p_log_records.size()):
+			var log_record := p_log_records[i]
+			var formatted_message := _log_record_formatter.format(log_record)
+			formatted_messages.append(formatted_message)
+		_sink.write_bulks(p_log_records, formatted_messages)
+
+	func flush_buffer() -> void:
+		_sink.flush_buffer()
+
+	func close() -> void:
+		flush_buffer()
+		_sink.close()
 
 ## Left pads a string with a character to a given length.
 static func pad_string(p_string: String, p_length: int, p_pad_char: String = " ") -> String:
