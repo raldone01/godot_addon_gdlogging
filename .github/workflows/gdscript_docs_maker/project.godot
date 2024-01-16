@@ -17,7 +17,7 @@ config/icon="res://assets/icons/plugin_icon_white.svg"
 
 [autoload]
 
-Log="*res://logger.gd"
+Log="*res://funcs/logger.gd"
 
 [dotnet]
 

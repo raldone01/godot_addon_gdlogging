@@ -46,7 +46,7 @@ jobs:
           --standalone
           --css github-markdown.min.css
           --output=docs/api/index.tmp.html
-          docs/api-md/funcs/logger.gd.md
+          docs/api-md/logger.gd.md
 
     - name: Fix body class
       run: |
@@ -56,6 +56,7 @@ jobs:
 
     - name: Deploy Documentation
       uses: peaceiris/actions-gh-pages@v3
+      if: ${{ github.ref == 'refs/heads/main' }}
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/api
