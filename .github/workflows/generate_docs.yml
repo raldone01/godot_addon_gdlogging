@@ -19,18 +19,20 @@ jobs:
         git clone https://github.com/GDQuest/gdscript-docs-maker.git
         cd gdscript-docs-maker
         git checkout 07cb0d8f0af6da745260d7bfabfc475504c413f1
-        git apply ../.github/workflows/gdscript_docs_maker.patch
+        git apply ../.github/workflows/gdscript_docs_maker/gdscript_docs_maker.patch
         docker build -t gdscript-docs-maker .
         cd ..
 
     - name: Generate Documentation
       run: |
+        cp .github/workflows/gdscript_docs_maker/project.godot ./
         docker run --rm -v ${{ github.workspace }}:/game -v ${{ github.workspace }}/docs/api-md:/output docker.io/library/gdscript-docs-maker /game -o /output
 
     - name: Fix permissions and create output directory
       run: |
         sudo chown -R $USER:$USER docs/
         mkdir -p docs/api
+        tree -la docs/api-md
 
     - name: Download CSS
       run: |
@@ -44,7 +46,7 @@ jobs:
           --standalone
           --css github-markdown.min.css
           --output=docs/api/index.tmp.html
-          docs/api-md/logger.gd.md
+          docs/api-md/funcs/logger.gd.md
 
     - name: Fix body class
       run: |
