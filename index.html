@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>logger.gd</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="github-markdown.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<!-- Auto-generated from JSON by GDScript docs maker. Do not edit this document directly. -->
+<h1 id="logger.gd">logger.gd</h1>
+<p><strong>Extends:</strong> <a href="../Node">Node</a></p>
+<h2 id="description">Description</h2>
+<h2 id="constants-descriptions">Constants Descriptions</h2>
+<h3 id="debug">DEBUG</h3>
+<pre class="gdscript"><code>const DEBUG: logger.gd.LogLevel = 1</code></pre>
+<h3 id="error">ERROR</h3>
+<pre class="gdscript"><code>const ERROR: logger.gd.LogLevel = 4</code></pre>
+<h3 id="error_messages">ERROR_MESSAGES</h3>
+<pre class="gdscript"><code>const ERROR_MESSAGES: Dictionary = {&quot;0&quot;:&quot;OK.&quot;,&quot;1&quot;:&quot;Generic error.&quot;,&quot;2&quot;:&quot;Unavailable error.&quot;,&quot;3&quot;:&quot;Unconfigured error.&quot;,&quot;4&quot;:&quot;Unauthorized error.&quot;,&quot;5&quot;:&quot;Parameter range error.&quot;,&quot;6&quot;:&quot;Out of memory (OOM) error.&quot;,&quot;7&quot;:&quot;File: Not found error.&quot;,&quot;8&quot;:&quot;File: Bad drive error.&quot;,&quot;9&quot;:&quot;File: Bad path error.&quot;,&quot;10&quot;:&quot;File: No permission error.&quot;,&quot;11&quot;:&quot;File: Already in use error.&quot;,&quot;12&quot;:&quot;File: Can&#39;t open error.&quot;,&quot;13&quot;:&quot;File: Can&#39;t write error.&quot;,&quot;14&quot;:&quot;File: Can&#39;t read error.&quot;,&quot;15&quot;:&quot;File: Unrecognized error.&quot;,&quot;16&quot;:&quot;File: Corrupt error.&quot;,&quot;17&quot;:&quot;File: Missing dependencies error.&quot;,&quot;18&quot;:&quot;File: End of file (EOF) error.&quot;,&quot;19&quot;:&quot;Can&#39;t open error.&quot;,&quot;20&quot;:&quot;Can&#39;t create error.&quot;,&quot;21&quot;:&quot;Query failed error.&quot;,&quot;22&quot;:&quot;Already in use error.&quot;,&quot;23&quot;:&quot;Locked error.&quot;,&quot;24&quot;:&quot;Timeout error.&quot;,&quot;25&quot;:&quot;Can&#39;t connect error.&quot;,&quot;26&quot;:&quot;Can&#39;t resolve error.&quot;,&quot;27&quot;:&quot;Connection error.&quot;,&quot;28&quot;:&quot;Can&#39;t acquire resource error.&quot;,&quot;29&quot;:&quot;Can&#39;t fork process error.&quot;,&quot;30&quot;:&quot;Invalid data error.&quot;,&quot;31&quot;:&quot;Invalid parameter error.&quot;,&quot;32&quot;:&quot;Already exists error.&quot;,&quot;33&quot;:&quot;Does not exist error.&quot;,&quot;34&quot;:&quot;Database: Read error.&quot;,&quot;35&quot;:&quot;Database: Write error.&quot;,&quot;36&quot;:&quot;Compilation failed error.&quot;,&quot;37&quot;:&quot;Method not found error.&quot;,&quot;38&quot;:&quot;Linking failed error.&quot;,&quot;39&quot;:&quot;Script failed error.&quot;,&quot;40&quot;:&quot;Cycling link (import cycle) error.&quot;,&quot;41&quot;:&quot;Invalid declaration error.&quot;,&quot;42&quot;:&quot;Duplicate symbol error.&quot;,&quot;43&quot;:&quot;Parse error.&quot;,&quot;44&quot;:&quot;Busy error.&quot;,&quot;45&quot;:&quot;Skip error.&quot;,&quot;46&quot;:&quot;Help error.&quot;,&quot;47&quot;:&quot;Bug error.&quot;,&quot;48&quot;:&quot;Printer on fire error.&quot;}</code></pre>
+<h3 id="info">INFO</h3>
+<pre class="gdscript"><code>const INFO: logger.gd.LogLevel = 2</code></pre>
+<h3 id="level_names">LEVEL_NAMES</h3>
+<pre class="gdscript"><code>const LEVEL_NAMES: Array = [&quot;TRACE&quot;,&quot;DEBUG&quot;,&quot;INFO&quot;,&quot;WARNING&quot;,&quot;ERROR&quot;]</code></pre>
+<h3 id="level_names_short">LEVEL_NAMES_SHORT</h3>
+<pre class="gdscript"><code>const LEVEL_NAMES_SHORT: Array = [&quot;TRC&quot;,&quot;DBG&quot;,&quot;INF&quot;,&quot;WRN&quot;,&quot;ERR&quot;]</code></pre>
+<h3 id="loglevel">LogLevel</h3>
+<pre class="gdscript"><code>enum LogLevel{TRACE = 0, DEBUG = 1, INFO = 2, WARNING = 3, ERROR = 4, MAX = 5}</code></pre>
+<h3 id="trace">TRACE</h3>
+<pre class="gdscript"><code>const TRACE: logger.gd.LogLevel = 0</code></pre>
+<h3 id="warning">WARNING</h3>
+<pre class="gdscript"><code>const WARNING: logger.gd.LogLevel = 3</code></pre>
+<h2 id="method-descriptions">Method Descriptions</h2>
+<h3 id="trace-1">trace</h3>
+<pre class="gdscript"><code>func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 2) -&gt; void</code></pre>
+<h3 id="debug-1">debug</h3>
+<pre class="gdscript"><code>func debug(p_message: String) -&gt; void</code></pre>
+<h3 id="info-1">info</h3>
+<pre class="gdscript"><code>func info(p_message: String) -&gt; void</code></pre>
+<h3 id="warning-1">warning</h3>
+<pre class="gdscript"><code>func warning(p_message: String) -&gt; void</code></pre>
+<h3 id="error-1">error</h3>
+<pre class="gdscript"><code>func error(p_message: String) -&gt; void</code></pre>
+<h3 id="set_level">set_level</h3>
+<pre class="gdscript"><code>func set_level(p_level: logger.gd.LogLevel) -&gt; void</code></pre>
+<h3 id="get_level">get_level</h3>
+<pre class="gdscript"><code>func get_level() -&gt; logger.gd.LogLevel</code></pre>
+<h3 id="set_log_record_formatter">set_log_record_formatter</h3>
+<pre class="gdscript"><code>func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -&gt; void</code></pre>
+<h3 id="add_sink">add_sink</h3>
+<pre class="gdscript"><code>func add_sink(p_sink: LogSink) -&gt; void</code></pre>
+<h3 id="remove_sink">remove_sink</h3>
+<pre class="gdscript"><code>func remove_sink(p_sink: LogSink) -&gt; void</code></pre>
+<h3 id="flush_buffer">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="format_log_level_name-static">format_log_level_name <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_log_level_name(p_level: logger.gd.LogLevel) -&gt; String</code></pre>
+<p>Returns the full name of a log level.</p>
+<h3 id="format_log_level_name_short-static">format_log_level_name_short <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_log_level_name_short(p_level: logger.gd.LogLevel) -&gt; String</code></pre>
+<p>Returns a three letter abbreviation of a log level.</p>
+<h3 id="format_month_short-static">format_month_short <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_month_short(p_month: int) -&gt; String</code></pre>
+<p>Returns a three letter abbreviation of a month.</p>
+<h3 id="format_session_id-static">format_session_id <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_session_id(p_session_id: int) -&gt; String</code></pre>
+<p>Formats the session id number to a string truncated to 4 digits.</p>
+<h3 id="format_time_default-static">format_time_default <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_time_default(p_unix_time: float) -&gt; String</code></pre>
+<p>Formats a unix timestamp to a string. The default formatter uses this format.</p>
+<h3 id="format_time_default_for_filename-static">format_time_default_for_filename <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_time_default_for_filename(p_unix_time: float) -&gt; String</code></pre>
+<p>Formats a unix timestamp to a string. The <a href="#dirsink">DirSink</a> uses this format.</p>
+<h3 id="pad_string-static">pad_string <small>(static)</small></h3>
+<pre class="gdscript"><code>func pad_string(p_string: String, p_length: int, p_pad_char: String = &quot; &quot;) -&gt; String</code></pre>
+<p>Left pads a string with a character to a given length.</p>
+<h3 id="format_error-static">format_error <small>(static)</small></h3>
+<pre class="gdscript"><code>func format_error(p_error: int) -&gt; String</code></pre>
+<h2 id="sub-classes">Sub-classes</h2>
+<h3 id="logsink">LogSink</h3>
+<h4 id="method-descriptions-1">Method Descriptions</h4>
+<h3 id="write_bulks">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<p>Write many log records to the sink</p>
+<h3 id="flush_buffer-1">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<p>Flushes the buffer of the sink if it has one.</p>
+<h3 id="close">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<p>Cleans up resources used by the sink.</p>
+<h3 id="filteringsink">FilteringSink</h3>
+<h4 id="method-descriptions-2">Method Descriptions</h4>
+<h3 id="init">_init</h3>
+<pre class="gdscript"><code>func _init(p_sink: LogSink, p_level: logger.gd.LogLevel) -&gt; FilteringSink</code></pre>
+<h3 id="write_bulks-1">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="flush_buffer-2">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="close-1">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="broadcastsink">BroadcastSink</h3>
+<h4 id="method-descriptions-3">Method Descriptions</h4>
+<h3 id="add_sink-1">add_sink</h3>
+<pre class="gdscript"><code>func add_sink(p_sink: LogSink) -&gt; void</code></pre>
+<h3 id="remove_sink-1">remove_sink</h3>
+<pre class="gdscript"><code>func remove_sink(p_sink: LogSink) -&gt; void</code></pre>
+<h3 id="write_bulks-2">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="flush_buffer-3">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="close-2">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="bufferedsink">BufferedSink</h3>
+<h4 id="method-descriptions-4">Method Descriptions</h4>
+<h3 id="init-1">_init</h3>
+<pre class="gdscript"><code>func _init(p_sink: LogSink, p_buffer_size: int = 42) -&gt; BufferedSink</code></pre>
+<p>Creates a new BufferedSink.</p>
+<p>The buffer size is the number of messages that will be buffered before being flushed to the sink.</p>
+<h3 id="flush_buffer-4">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="set_buffer_flush_interval_msec">set_buffer_flush_interval_msec</h3>
+<pre class="gdscript"><code>func set_buffer_flush_interval_msec(p_buffer_flush_interval_msec: int) -&gt; void</code></pre>
+<p>Set to 0 to disable interval flushing.</p>
+<h3 id="write_bulks-3">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="close-3">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="consolesink">ConsoleSink</h3>
+<h4 id="method-descriptions-5">Method Descriptions</h4>
+<h3 id="write_bulks-4">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="flush_buffer-5">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="dirsink">DirSink</h3>
+<h4 id="method-descriptions-6">Method Descriptions</h4>
+<h3 id="init-2">_init</h3>
+<pre class="gdscript"><code>func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int = 4042, p_max_file_count: int = 10) -&gt; DirSink</code></pre>
+<h3 id="flush_buffer-6">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="write_bulks-5">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="close-4">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="memorywindowsink">MemoryWindowSink</h3>
+<h4 id="method-descriptions-7">Method Descriptions</h4>
+<h3 id="init-3">_init</h3>
+<pre class="gdscript"><code>func _init(p_max_lines: int = 100) -&gt; MemoryWindowSink</code></pre>
+<h3 id="write_bulks-6">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="flush_buffer-7">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="get_buffer">get_buffer</h3>
+<pre class="gdscript"><code>func get_buffer() -&gt; Dictionary</code></pre>
+<h3 id="formattingsink">FormattingSink</h3>
+<h4 id="method-descriptions-8">Method Descriptions</h4>
+<h3 id="init-4">_init</h3>
+<pre class="gdscript"><code>func _init(p_sink: LogSink, p_log_record_formatter: LogRecordFormatter) -&gt; FormattingSink</code></pre>
+<h3 id="write_bulks-7">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<h3 id="flush_buffer-8">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="close-5">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="logrecordformatter">LogRecordFormatter</h3>
+<h4 id="method-descriptions-9">Method Descriptions</h4>
+<h3 id="format">format</h3>
+<pre class="gdscript"><code>class LogRecordFormatter</code></pre>
+<h3 id="logger">Logger</h3>
+<h4 id="method-descriptions-10">Method Descriptions</h4>
+<h3 id="init-5">_init</h3>
+<pre class="gdscript"><code>func _init(p_tag: String, p_level: logger.gd.LogLevel = 0, p_log_record_formatter: LogRecordFormatter = null, p_sink: LogSink = null) -&gt; Logger</code></pre>
+<h3 id="write_bulks-8">write_bulks</h3>
+<pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
+<p>Write will not format the message, it will just pass it to the underlying sink.</p>
+<h3 id="flush_buffer-9">flush_buffer</h3>
+<pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
+<h3 id="get_tag">get_tag</h3>
+<pre class="gdscript"><code>func get_tag() -&gt; String</code></pre>
+<h3 id="set_level-1">set_level</h3>
+<pre class="gdscript"><code>func set_level(p_level: logger.gd.LogLevel) -&gt; void</code></pre>
+<h3 id="get_level-1">get_level</h3>
+<pre class="gdscript"><code>func get_level() -&gt; logger.gd.LogLevel</code></pre>
+<h3 id="set_log_record_formatter-1">set_log_record_formatter</h3>
+<pre class="gdscript"><code>func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -&gt; void</code></pre>
+<h3 id="log">log</h3>
+<pre class="gdscript"><code>func log(p_level: logger.gd.LogLevel, p_message: String, p_log_record: Dictionary = null) -&gt; void</code></pre>
+<h3 id="trace-2">trace</h3>
+<pre class="gdscript"><code>func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 1) -&gt; void</code></pre>
+<h3 id="debug-2">debug</h3>
+<pre class="gdscript"><code>func debug(p_message: String) -&gt; void</code></pre>
+<h3 id="info-2">info</h3>
+<pre class="gdscript"><code>func info(p_message: String) -&gt; void</code></pre>
+<h3 id="warning-2">warning</h3>
+<pre class="gdscript"><code>func warning(p_message: String) -&gt; void</code></pre>
+<h3 id="error-2">error</h3>
+<pre class="gdscript"><code>func error(p_message: String) -&gt; void</code></pre>
+<h3 id="close-6">close</h3>
+<pre class="gdscript"><code>func close() -&gt; void</code></pre>
+<h3 id="logtimer">LogTimer</h3>
+<h4 id="method-descriptions-11">Method Descriptions</h4>
+<h3 id="init-6">_init</h3>
+<pre class="gdscript"><code>func _init(p_message: String, p_threshold_msec: int = 0, p_logger: Logger = null) -&gt; LogTimer</code></pre>
+<h3 id="set_level-2">set_level</h3>
+<pre class="gdscript"><code>func set_level(p_level: logger.gd.LogLevel) -&gt; void</code></pre>
+<h3 id="set_threshold_msec">set_threshold_msec</h3>
+<pre class="gdscript"><code>func set_threshold_msec(p_threshold_msec: int) -&gt; void</code></pre>
+<h3 id="start">start</h3>
+<pre class="gdscript"><code>func start() -&gt; void</code></pre>
+<h3 id="stop">stop</h3>
+<pre class="gdscript"><code>func stop() -&gt; void</code></pre>
+</body>
+</html>
