@@ -87,6 +87,7 @@ Log.set_log_record_formatter(MyLogRecordFormatter.new())
 cd <godot_project_dir>
 cd addons
 git submodule add git@github.com:raldone01/godot_addon_gdlogging.git gdlogging
+cd gdlogging
 git checkout v1.0.0
 ```
 
