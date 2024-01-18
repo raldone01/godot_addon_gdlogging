@@ -93,6 +93,8 @@ git checkout v1.0.0
 
 `Project -> Project Settings -> Plugins -> gdlogging -> Activate`
 
+Autoloads are a bit janky so you may need to restart the editor for errors to go away.
+
 ## Licensing
 
 Marked parts are licensed under the `LICENSE-godot-logger.md` (MIT) license.

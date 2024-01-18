@@ -94,7 +94,7 @@ static func format_time_default_for_filename(p_unix_time: float) -> String:
 
 ## Base class to be inherited by sinks.
 ## All message formatting has already been done by the logger.
-class LogSink:
+class LogSink extends RefCounted:
 	## Write many log records to the sink
 	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
 		Log._logger_direct_console.warning("LogSink: write_bulks() not implemented.")
