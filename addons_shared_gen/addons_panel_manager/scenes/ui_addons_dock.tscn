@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://lgxr7t7u3bh3"]
+[gd_scene load_steps=2 format=3 uid="uid://cvtc47yp55uyg"]
 
-[ext_resource type="Script" path="ui_addons_dock.gd" id="1_cqnue"]
+[ext_resource type="Script" path="res://addons/gdlogging/addons_shared_gen/addons_panel_manager/scenes/ui_addons_dock.gd" id="1_cqnue"]
 
 [node name="Addons" type="HBoxContainer"]
 anchors_preset = 15
