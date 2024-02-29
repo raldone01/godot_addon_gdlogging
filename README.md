@@ -72,14 +72,14 @@ To create a custom sink extend the `Log.LogSink` and implement the methods.
 
 ```gdscript
 class MyCustomSink extends Log.LogSink:
-	## Write many log records to the sink
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+  ## Write many log records to the sink
+  func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
     pass
-	## Flushes the buffer of the sink if it has one.
-	func flush_buffer() -> void:
+  ## Flushes the buffer of the sink if it has one.
+  func flush_buffer() -> void:
     pass
-	## Cleans up resources used by the sink.
-	func close() -> void:
+  ## Cleans up resources used by the sink.
+  func close() -> void:
     pass
 ```
 
@@ -90,7 +90,7 @@ class MyLogRecordFormatter extends Log.LogRecordFormatter:
   func format(log_record: Dictionary) -> String:
     var time_unix: float = log_record["time_unix"]
     var level: Log.LogLevel = log_record["level"]
-		var unformatted_message: String = log_record["unformatted_message"]
+    var unformatted_message: String = log_record["unformatted_message"]
 
     var time_str: String = Time.get_date_string_from_unix_time(time_unix)
     var level_str := Log.get_level_name(level)
