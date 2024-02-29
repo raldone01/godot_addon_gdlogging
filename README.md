@@ -13,10 +13,10 @@ var console_sink := Log.ConsoleSink.new()
 Log.add_sink(console_sink)
 
 var dir_sink := Log.DirSink.new("mylog", "res://logs", 4042)
-var buffered_sink := Log.BufferedSink.new(dir_sink, 500)
+var buffered_pipe := Log.BufferedPipe.new(dir_sink, 500)
 # Don't log TRACE messages to the log file
-var file_filtered_sink := Log.FilteringSink.new(buffered_sink, Log.DEBUG)
-Log.add_sink(file_filtered_sink)
+var file_filtered_pipe := Log.FilteringPipe.new(buffered_pipe, Log.DEBUG)
+Log.add_sink(file_filtered_pipe)
 
 Log.debug("Hello World")
 # [24/Jan/14 13:28:03] [         Global] [DBG] Hello World
@@ -41,17 +41,6 @@ timer.stop()
 # [24/Jan/14 13:28:06] [        MyClass] [INF] MyTimer exceeded threshold of 1000 msec: took 1.111750 seconds.
 ```
 
-## Sinks
-
-* `FilteringSink`: Filters messages by level and forwards them to another sink.
-* `BroadcastSink`: Broadcasts messages to multiple sinks.
-* `BufferedSink`: Buffers messages and forwards them to another sink.
-* `ConsoleSink`: Outputs messages to the console.
-* `DirSink`: Outputs messages to log files and rotates them. Uses a thread for file io.
-* `Logger`: Can receive messages from other Loggers and Sinks. Users will call the log functions which format the message.
-* `MemoryWindowSink`: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
-* `FormattingSink`: Formats messages and forwards them to another sink.
-
 ## Log Levels
 
 * `Log.TRACE`: Prints the call site in debug builds. The stack depth can be configured per call.
@@ -59,6 +48,40 @@ timer.stop()
 * `Log.INFO`: Informational messages
 * `Log.WARN`: Warnings
 * `Log.ERROR`: Errors
+
+## Pipes
+
+* `FilteringPipe`: Filters messages by level and forwards them to another sink.
+* `BroadcastPipe`: Broadcasts messages to multiple sinks.
+* `BufferedPipe`: Buffers messages and forwards them to another sink.
+* `FormattingPipe`: Formats messages and forwards them to another sink.
+
+## Sinks
+
+* `ConsoleSink`: Outputs messages to the console.
+* `DirSink`: Outputs messages to log files and rotates them. Uses a thread for file io.
+* `Logger`: Can receive messages from other Loggers and Sinks. Users will call the log functions which format the message.
+* `MemoryWindowSink`: Keeps `n` log messages in memory. Can be used to display the last `n` messages in a GUI.
+
+## Custom Sinks/Pipes
+
+Classes ending in `Pipe` are sinks that forward messages to another sink.
+Classes ending in `Sink` write messages to a destination.
+
+To create a custom sink extend the `Log.LogSink` and implement the methods.
+
+```gdscript
+class MyCustomSink extends Log.LogSink:
+	## Write many log records to the sink
+	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+    pass
+	## Flushes the buffer of the sink if it has one.
+	func flush_buffer() -> void:
+    pass
+	## Cleans up resources used by the sink.
+	func close() -> void:
+    pass
+```
 
 ## Custom Formatters
 

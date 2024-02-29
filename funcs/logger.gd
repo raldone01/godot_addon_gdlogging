@@ -61,7 +61,7 @@ static func format_month_short(p_month: int) -> String:
 	return month_names[p_month - 1]
 
 ## Formats the session id number to a string truncated to 4 digits.
-static func format_session_id(p_session_id: int)	-> String:
+static func format_session_id(p_session_id: int) -> String:
 	return "%04d" % p_session_id
 
 ## Formats a unix timestamp to a string.
@@ -105,7 +105,7 @@ class LogSink extends RefCounted:
 	func close() -> void:
 		pass
 
-class FilteringSink extends LogSink:
+class FilteringPipe extends LogSink:
 	var _sink: LogSink
 	var _level: LogLevel
 
@@ -132,7 +132,7 @@ class FilteringSink extends LogSink:
 		flush_buffer()
 		_sink.close()
 
-class BroadcastSink extends LogSink:
+class BroadcastPipe extends LogSink:
 	var _sinks: Array[LogSink] = []
 
 	func add_sink(p_sink: LogSink) -> void:
@@ -171,7 +171,7 @@ class BufferedSink extends LogSink:
 	## [param buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
 	##
 	## The buffer size is the number of messages that will be buffered before being flushed to the sink.
-	func _init(p_sink: LogSink, p_buffer_size: int = 42) -> void:
+	func _init(p_sink: LogSink, p_buffer_size: int=42) -> void:
 		if p_buffer_size < 0:
 			p_buffer_size = 0
 			Log._logger_direct_console.warning("BufferedSink: Buffer size must be equal or greater than 0.")
@@ -248,7 +248,7 @@ class DirSink extends LogSink:
 	var _io_thread_exit := false
 	var _io_thread_flush_buffer := false
 
-	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int = 4042, p_max_file_count: int = 10) -> void:
+	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int=4042, p_max_file_count: int=10) -> void:
 		_log_name = p_log_name
 		if p_dir_path.begins_with("user://") or p_dir_path.begins_with("res://"):
 			p_dir_path = ProjectSettings.globalize_path(p_dir_path)
@@ -319,7 +319,7 @@ class DirSink extends LogSink:
 			return
 		var files_to_delete := file_count - _max_file_count
 		for i in range(files_to_delete):
-			var filename := last_dir_listing[-1]
+			var filename := last_dir_listing[- 1]
 			var path := _dir_path + "/" + filename
 			# OS.move_to_trash(path) # completely blocks the main thread
 			var dir := DirAccess.open(".")
@@ -400,7 +400,7 @@ class MemoryWindowSink extends LogSink:
 	var _formatted_messages := PackedStringArray()
 	var _log_records: Array[Dictionary] = []
 
-	func _init(p_max_lines: int = 100) -> void:
+	func _init(p_max_lines: int=100) -> void:
 		_max_lines = p_max_lines
 
 	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
@@ -419,7 +419,7 @@ class MemoryWindowSink extends LogSink:
 			"log_records": _log_records,
 		}
 
-class FormattingSink extends LogSink:
+class FormattingPipe extends LogSink:
 	var _sink: LogSink
 	var _log_record_formatter: LogRecordFormatter
 
@@ -443,7 +443,7 @@ class FormattingSink extends LogSink:
 		_sink.close()
 
 ## Left pads a string with a character to a given length.
-static func pad_string(p_string: String, p_length: int, p_pad_char: String = " ") -> String:
+static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") -> String:
 	var pad_length := p_length - p_string.length()
 	if pad_length <= 0:
 		return p_string
@@ -488,9 +488,9 @@ class Logger extends LogSink:
 
 	func _init(
 		p_tag: String,
-		p_level: LogLevel = LogLevel.TRACE,
-		p_log_record_formatter: LogRecordFormatter = Log._global_logger._log_record_formatter,
-		p_sink: LogSink = Log._global_logger
+		p_level: LogLevel=LogLevel.TRACE,
+		p_log_record_formatter: LogRecordFormatter=Log._global_logger._log_record_formatter,
+		p_sink: LogSink=Log._global_logger
 	) -> void:
 		_tag = p_tag
 		_log_record_formatter = p_log_record_formatter
@@ -516,7 +516,7 @@ class Logger extends LogSink:
 	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
 		_log_record_formatter = p_log_record_formatter
 
-	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary = {}) -> void:
+	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary={}) -> void:
 		if p_level < _level:
 			return
 		p_log_record["level"] = p_level
@@ -526,7 +526,7 @@ class Logger extends LogSink:
 		var formatted_message := _log_record_formatter.format(p_log_record)
 		_sink.write_bulks([p_log_record], [formatted_message])
 
-	func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 1) -> void:
+	func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=1) -> void:
 		var log_record := {}
 		if OS.is_debug_build():
 			var stack: Array[Dictionary] = get_stack()
@@ -559,7 +559,7 @@ class LogTimer:
 	var _message: String
 	var _level: LogLevel = LogLevel.INFO
 
-	func _init(p_message: String, p_threshold_msec: int = 0, p_logger: Logger = Log._global_logger) -> void:
+	func _init(p_message: String, p_threshold_msec: int=0, p_logger: Logger=Log._global_logger) -> void:
 		_logger = p_logger
 		_message = p_message
 		_threshold_msec = p_threshold_msec
@@ -586,12 +586,12 @@ class LogTimer:
 		if _threshold_msec < elapsed_time_usec / 1000:
 			_logger.log(_level, "%s exceeded threshold of %d msec: took %f seconds." % [_message, _threshold_msec, elapsed_time_sec])
 
-var _global_broadcast_sink: BroadcastSink
+var _global_broadcast_sink: BroadcastPipe
 var _global_logger: Logger
 var _logger_direct_console: Logger
 
 func _init() -> void:
-	_global_broadcast_sink = BroadcastSink.new()
+	_global_broadcast_sink = BroadcastPipe.new()
 	var log_formatter := LogRecordFormatter.new()
 	_global_logger = Logger.new("Global", LogLevel.TRACE, log_formatter, _global_broadcast_sink)
 	_logger_direct_console = Logger.new("gdlogging", LogLevel.TRACE, log_formatter, ConsoleSink.new())
@@ -602,7 +602,7 @@ func _exit_tree() -> void:
 	flush_buffer()
 	_global_logger.close()
 
-func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 2) -> void:
+func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=2) -> void:
 	_global_logger.trace(p_message, p_stack_depth, p_stack_hint)
 
 func debug(p_message: String) -> void:
