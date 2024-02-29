@@ -111,7 +111,7 @@ cd <godot_project_dir>
 cd addons
 git submodule add git@github.com:raldone01/godot_addon_gdlogging.git gdlogging
 cd gdlogging
-git checkout v1.0.0
+git checkout v1.1.0
 ```
 
 `Project -> Project Settings -> Plugins -> gdlogging -> Activate`
