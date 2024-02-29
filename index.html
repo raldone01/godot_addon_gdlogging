@@ -100,17 +100,17 @@
 <h3 id="close">close</h3>
 <pre class="gdscript"><code>func close() -&gt; void</code></pre>
 <p>Cleans up resources used by the sink.</p>
-<h3 id="filteringsink">FilteringSink</h3>
+<h3 id="filteringpipe">FilteringPipe</h3>
 <h4 id="method-descriptions-2">Method Descriptions</h4>
 <h3 id="init">_init</h3>
-<pre class="gdscript"><code>func _init(p_sink: LogSink, p_level: logger.gd.LogLevel) -&gt; FilteringSink</code></pre>
+<pre class="gdscript"><code>func _init(p_sink: LogSink, p_level: logger.gd.LogLevel) -&gt; FilteringPipe</code></pre>
 <h3 id="write_bulks-1">write_bulks</h3>
 <pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
 <h3 id="flush_buffer-2">flush_buffer</h3>
 <pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
 <h3 id="close-1">close</h3>
 <pre class="gdscript"><code>func close() -&gt; void</code></pre>
-<h3 id="broadcastsink">BroadcastSink</h3>
+<h3 id="broadcastpipe">BroadcastPipe</h3>
 <h4 id="method-descriptions-3">Method Descriptions</h4>
 <h3 id="add_sink-1">add_sink</h3>
 <pre class="gdscript"><code>func add_sink(p_sink: LogSink) -&gt; void</code></pre>
@@ -163,10 +163,10 @@
 <pre class="gdscript"><code>func flush_buffer() -&gt; void</code></pre>
 <h3 id="get_buffer">get_buffer</h3>
 <pre class="gdscript"><code>func get_buffer() -&gt; Dictionary</code></pre>
-<h3 id="formattingsink">FormattingSink</h3>
+<h3 id="formattingpipe">FormattingPipe</h3>
 <h4 id="method-descriptions-8">Method Descriptions</h4>
 <h3 id="init-4">_init</h3>
-<pre class="gdscript"><code>func _init(p_sink: LogSink, p_log_record_formatter: LogRecordFormatter) -&gt; FormattingSink</code></pre>
+<pre class="gdscript"><code>func _init(p_sink: LogSink, p_log_record_formatter: LogRecordFormatter) -&gt; FormattingPipe</code></pre>
 <h3 id="write_bulks-7">write_bulks</h3>
 <pre class="gdscript"><code>func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -&gt; void</code></pre>
 <h3 id="flush_buffer-8">flush_buffer</h3>
