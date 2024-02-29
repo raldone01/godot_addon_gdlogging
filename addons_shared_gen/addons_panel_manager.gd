@@ -5,11 +5,13 @@ class AddonsPanelManager:
 	const ADDONS_DOCK_NAME = "addons_dock_2c39d5937171140c1faaadb702029b32"
 	static var _addons_dock: Control
 	var _editor_plugin: EditorPlugin
+	var _plugin_name: String
 	var _main_panel: Control
 	var _tree: SceneTree
 
-	func _init(p_editor_plugin) -> void:
+	func _init(p_editor_plugin: EditorPlugin, p_plugin_name: String) -> void:
 		_editor_plugin = p_editor_plugin
+		_plugin_name = p_plugin_name
 		_tree = EditorInterface.get_editor_main_screen().get_tree()
 
 	func _find_addons_dock() -> Control:
@@ -18,11 +20,28 @@ class AddonsPanelManager:
 			return group[0]
 		return null
 
-	func add_main_panel(p_panel) -> void:
+	func add_main_panel(p_panel: Node) -> void:
+		var show_setting_name = "addons/" + _plugin_name + "/show_in_addons_dock"
+
+		if not ProjectSettings.has_setting(show_setting_name):
+			ProjectSettings.set_setting(show_setting_name, true)
+		ProjectSettings.add_property_info({
+			"name": show_setting_name,
+			"type": TYPE_BOOL,
+			"hint_string": "Show in Addons Dock",
+		})
+		ProjectSettings.set_as_basic(show_setting_name, true)
+		ProjectSettings.set_as_internal(show_setting_name, false)
+		ProjectSettings.set_initial_value(show_setting_name, true)
+		ProjectSettings.set_restart_if_changed(show_setting_name, true)
+
+		if not ProjectSettings.get_setting(show_setting_name):
+			return
+
 		if not _addons_dock:
 			_addons_dock = _find_addons_dock()
 		if not _addons_dock:
-			_addons_dock = preload("res://addons/gdlogging/addons_shared_gen/addons_panel_manager/scenes/ui_addons_dock.tscn").instantiate()
+			_addons_dock = preload ("res://addons/gdlogging/addons_shared_gen/addons_panel_manager/scenes/ui_addons_dock.tscn").instantiate()
 			_addons_dock.add_to_group(ADDONS_DOCK_NAME)
 			_editor_plugin.add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _addons_dock)
 
@@ -30,14 +49,14 @@ class AddonsPanelManager:
 		_addons_dock.child_container.add_child(p_panel)
 		_sort_children_alphabetically(_addons_dock.child_container)
 
-	func _sort_children_alphabetically(p_container) -> void:
+	func _sort_children_alphabetically(p_container: Node) -> void:
 		const LABEL_NAME = "AddonTitle"
 		var children: Array[Dictionary] = []
 		for child in p_container.get_children():
 			var label = child.find_child(LABEL_NAME)
 			children.append({"label": label, "node": child})
 
-		var sorter := func (p_a: Dictionary, p_b: Dictionary):
+		var sorter := func(p_a: Dictionary, p_b: Dictionary):
 			var a_label: Label = p_a["label"]
 			var b_label: Label = p_b["label"]
 

@@ -154,7 +154,7 @@ class BroadcastPipe extends LogSink:
 		for sink in _sinks:
 			sink.close()
 
-class BufferedSink extends LogSink:
+class BufferedPipe extends LogSink:
 	var _sink: LogSink
 
 	var _buffer_log_records: Array[Dictionary] = []
@@ -165,7 +165,7 @@ class BufferedSink extends LogSink:
 	# At most 1 second between buffer flushes
 	var _buffer_flush_interval_usec: int = 1000 * 1000 * 1
 
-	## Creates a new BufferedSink.
+	## Creates a new BufferedPipe.
 	##
 	## [param sink]: The sink to write to.
 	## [param buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
@@ -174,7 +174,7 @@ class BufferedSink extends LogSink:
 	func _init(p_sink: LogSink, p_buffer_size: int=42) -> void:
 		if p_buffer_size < 0:
 			p_buffer_size = 0
-			Log._logger_direct_console.warning("BufferedSink: Buffer size must be equal or greater than 0.")
+			Log._logger_direct_console.warning("BufferedPipe: Buffer size must be equal or greater than 0.")
 		_buffer_size = p_buffer_size
 		_sink = p_sink
 
