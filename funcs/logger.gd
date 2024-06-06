@@ -471,7 +471,7 @@ class LogRecordFormatter:
 			var stack: Array[Dictionary] = p_log_record["stack"]
 			for frame in stack:
 				var source: String = frame["source"]
-				var line: String = frame["line"]
+				var line: int = frame["line"]
 				var function: String = frame["function"]
 				formatted_message += "\n\tAt: %s:%d:%s()" % [
 					source,
@@ -696,5 +696,5 @@ const ERROR_MESSAGES = {
 
 static func format_error(p_error: int) -> String:
 	if ERROR_MESSAGES.has(p_error):
-		return ERROR_MESSAGES[error]
+		return ERROR_MESSAGES[p_error]
 	return "Unknown p_error (%d)." % p_error
