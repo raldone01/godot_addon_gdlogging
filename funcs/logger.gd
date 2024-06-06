@@ -363,7 +363,7 @@ class DirSink extends LogSink:
 			_io_thread_current_file.close()
 
 	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		# If this causes lag spikes this can be replaced with a try_lock but a second buffer is needed to avoid dropping logs.
+		# If lock causes lag spikes it can be replaced with a try_lock but a second buffer will be needed to avoid dropping logs.
 		# Also if this is ever implemented flush_buffer() would have to use lock and ensure all data is sent to the thread.
 		_io_thread_log_lock.lock()
 		_io_thread_formatted_messages.append_array(p_formatted_messages)
