@@ -92,73 +92,70 @@ static func format_time_default_for_filename(p_unix_time: float) -> String:
 	]
 	return time_str
 
-## Base class to be inherited by sinks.
-## All message formatting has already been done by the logger.
-class LogSink extends RefCounted:
-	## Write many log records to the sink
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		Log._logger_direct_console.warning("LogSink: write_bulks() not implemented.")
-	## Flushes the buffer of the sink if it has one.
+## Base class to be inherited by log pipes.
+## The messages have not yet been formatted.
+class LogPipe extends RefCounted:
+	## Write many log records to the pipe
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		Log._logger_direct_console.warning("LogPipe: write_bulks() not implemented.")
+	## Flushes the buffer of the pipe if it has one.
 	func flush_buffer() -> void:
-		Log._logger_direct_console.warning("LogSink: flush_buffer() not implemented.")
-	## Cleans up resources used by the sink.
+		Log._logger_direct_console.warning("LogPipe: flush_buffer() not implemented.")
+	## Cleans up resources used by the pipe.
 	func close() -> void:
 		pass
 
-class FilteringPipe extends LogSink:
-	var _sink: LogSink
+class FilteringPipe extends LogPipe:
+	var _pipe: LogPipe
 	var _level: LogLevel
 
-	func _init(p_sink: LogSink, p_level: LogLevel) -> void:
-		_sink = p_sink
+	func _init(p_pipe: LogPipe, p_level: LogLevel) -> void:
+		_pipe = p_pipe
 		_level = p_level
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
 		var filtered_log_records: Array[Dictionary] = []
 		var filtered_formatted_messages := PackedStringArray()
 		for i in range(p_log_records.size()):
 			var log_record := p_log_records[i]
-			var formatted_message := p_formatted_messages[i]
 			var level: LogLevel = log_record["level"]
 			if level >= _level:
 				filtered_log_records.append(log_record)
-				filtered_formatted_messages.append(formatted_message)
-		_sink.write_bulks(filtered_log_records, filtered_formatted_messages)
+		_pipe.write_bulks(filtered_log_records)
 
 	func flush_buffer() -> void:
-		_sink.flush_buffer()
+		_pipe.flush_buffer()
 
 	func close() -> void:
 		flush_buffer()
-		_sink.close()
+		_pipe.close()
 
-class BroadcastPipe extends LogSink:
-	var _sinks: Array[LogSink] = []
+class BroadcastPipe extends LogPipe:
+	var _pipes: Array[LogPipe] = []
 
-	func add_sink(p_sink: LogSink) -> void:
-		_sinks.append(p_sink)
+	func add_pipe(p_pipe: LogPipe) -> void:
+		_pipes.append(p_pipe)
 
-	func remove_sink(p_sink: LogSink) -> void:
-		_sinks.erase(p_sink)
+	func remove_pipe(p_pipe: LogPipe) -> void:
+		_pipes.erase(p_pipe)
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		for sink in _sinks:
-			sink.write_bulks(p_log_records, p_formatted_messages)
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		for pipe in _pipes:
+			pipe.write_bulks(p_log_records)
 
 	func flush_buffer() -> void:
-		for sink in _sinks:
-			sink.flush_buffer()
+		for pipe in _pipes:
+			pipe.flush_buffer()
 
 	func close() -> void:
 		flush_buffer()
-		for sink in _sinks:
-			sink.close()
+		for pipe in _pipes:
+			pipe.close()
 
-class BufferedPipe extends LogSink:
-	var _sink: LogSink
+class BufferedPipe extends LogPipe:
+	var _pipe: LogPipe
 
 	var _buffer_log_records: Array[Dictionary] = []
-	var _buffer_formatted_messages := PackedStringArray()
 	var _buffer_size: int = 0
 	var _last_buffer_write_out_time_usec: int = 0
 
@@ -167,63 +164,147 @@ class BufferedPipe extends LogSink:
 
 	## Creates a new BufferedPipe.
 	##
-	## [param sink]: The sink to write to.
-	## [param buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
+	## [param p_pipe]: The pipe to write to.
+	## [param p_buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
 	##
-	## The buffer size is the number of messages that will be buffered before being flushed to the sink.
-	func _init(p_sink: LogSink, p_buffer_size: int=42) -> void:
+	## The buffer size is the number of messages that will be buffered before being flushed to the pipe.
+	func _init(p_pipe: LogPipe, p_buffer_size: int=42) -> void:
 		if p_buffer_size < 0:
 			p_buffer_size = 0
 			Log._logger_direct_console.warning("BufferedPipe: Buffer size must be equal or greater than 0.")
 		_buffer_size = p_buffer_size
-		_sink = p_sink
+		_pipe = p_pipe
 
 	func _write_bulks_buffered() -> void:
-		_sink.write_bulks(_buffer_log_records, _buffer_formatted_messages)
+		_pipe.write_bulks(_buffer_log_records)
 		_buffer_log_records.clear()
-		_buffer_formatted_messages.clear()
 		_last_buffer_write_out_time_usec = Time.get_ticks_usec()
 
 	func flush_buffer() -> void:
 		_write_bulks_buffered()
-		_sink.flush_buffer()
+		_pipe.flush_buffer()
 
 	## Set to 0 to disable interval flushing.
 	func set_buffer_flush_interval_msec(p_buffer_flush_interval_msec: int) -> void:
 		_buffer_flush_interval_usec = p_buffer_flush_interval_msec * 1000
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
 		if _buffer_size == 0:
-			_sink.write_bulks(p_log_records, p_formatted_messages)
+			_pipe.write_bulks(p_log_records)
 			return
 		_buffer_log_records.append_array(p_log_records)
-		_buffer_formatted_messages.append_array(p_formatted_messages)
 		var max_wait_exceeded := _buffer_flush_interval_usec != 0 and Time.get_ticks_usec() - _last_buffer_write_out_time_usec > _buffer_flush_interval_usec
 		if (_buffer_log_records.size() >= _buffer_size) \
 			or max_wait_exceeded:
 			_write_bulks_buffered()
 			if max_wait_exceeded:
-				# flush the underlying sink every second
-				_sink.flush_buffer()
+				# flush the underlying pipe every second
+				_pipe.flush_buffer()
 
 	func close() -> void:
 		flush_buffer()
-		_sink.close()
+		_pipe.close()
 
-class ConsoleSink extends LogSink:
+class LogSink extends LogPipe:
+	## Sets the log record formatter.
+	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+		Log._logger_direct_console.warning("LogSink: set_log_record_formatter() not implemented.")
+	## Gets the log record formatter.
+	func get_log_record_formatter() -> LogRecordFormatter:
+		Log._logger_direct_console.warning("LogSink: get_log_record_formatter() not implemented.")
+		return null
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
+class ThreadedLogSink extends LogSink:
+	var _io_thread: Thread
+
+	var _log_record_formatter: LogRecordFormatter
+	var _sink_capabilties: Dictionary
+
+	var _work_semaphore := Semaphore.new()
+	var _io_thread_exit := false
+	var _io_thread_flush_buffer := false
+
+	var _log_records_inbox_lock := Mutex.new()
+	var _log_records_inbox: Array[Dictionary] = []
+
+	var _io_thread_log_records: Array[Dictionary] = []
+	var _io_thread_formatted_logs := PackedStringArray()
+
+	func _init(
+		p_log_record_formatter: LogRecordFormatter,
+		p_sink_capabilties: Dictionary={},
+		p_thread_priority: int=Thread.PRIORITY_LOW
+	) -> void:
+		_log_record_formatter = p_log_record_formatter
+		_sink_capabilties = p_sink_capabilties
+
+		_io_thread = Thread.new()
+		_io_thread.start(self._io_thread_main, p_thread_priority)
+
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		_log_records_inbox_lock.lock()
+		_log_records_inbox.append_array(p_log_records)
+		_log_records_inbox_lock.unlock()
+		_work_semaphore.post()
+
+	func flush_buffer() -> void:
+		_io_thread_flush_buffer = true
+		_work_semaphore.post()
+
+	## This function should be implemented by the derived class to actually output the formatted log messages.
+	func _io_thread_output_logs(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray, flush_buffer: bool) -> void:
+		Log._logger_direct_console.warning("ThreadedLogSink: _io_thread_output_logs() not implemented.")
+
+	## This function should be implemented by the derived class to handle the exit of the sink.
+	func _io_thread_exit_sink() -> void:
+		pass
+
+	func _io_thread_main() -> void:
+		while not _io_thread_exit:
+			_work_semaphore.wait()
+			_log_records_inbox_lock.lock()
+			_io_thread_log_records.assign(_log_records_inbox)
+			_log_records_inbox.clear()
+			_log_records_inbox_lock.unlock()
+
+			_io_thread_formatted_logs.clear()
+			for log_record in _io_thread_log_records:
+				var formatted_message := _log_record_formatter.format(log_record, _sink_capabilties)
+				_io_thread_formatted_logs.append(formatted_message)
+
+			var flush_buffer := _io_thread_flush_buffer
+			if flush_buffer:
+				_io_thread_flush_buffer = false
+			_io_thread_output_logs(_io_thread_log_records, _io_thread_formatted_logs, flush_buffer)
+
+	  # thread exit
+
+		# flush
+		_io_thread_output_logs([], [], true)
+		# close
+		_io_thread_exit_sink()
+
+	func close() -> void:
+		_io_thread_exit = true
+		_work_semaphore.post()
+		_io_thread.wait_to_finish()
+
+class ConsoleSink extends ThreadedLogSink:
+
+	func _init() -> void:
+		var sink_capabilities := {}
+		super._init(_global_log_record_formatter, sink_capabilities)
+
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
 		for i in range(p_formatted_messages.size()):
 			var log_record := p_log_records[i]
 			var formatted_message := p_formatted_messages[i]
 			var level: LogLevel = log_record["level"]
+
 			if level <= LogLevel.INFO:
 				print(formatted_message)
 			else:
 				printerr(formatted_message)
-
-	func flush_buffer() -> void:
-		pass
 
 class DirSink extends LogSink:
 	var _log_name: String
@@ -433,7 +514,7 @@ class FormattingPipe extends LogSink:
 		var formatted_messages := PackedStringArray()
 		for i in range(p_log_records.size()):
 			var log_record := p_log_records[i]
-			var formatted_message := _log_record_formatter.format(log_record)
+			var formatted_message := _log_record_formatter.format(log_record, {})
 			formatted_messages.append(formatted_message)
 		_sink.write_bulks(p_log_records, formatted_messages)
 
@@ -454,8 +535,118 @@ static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") 
 		pad += p_pad_char
 	return pad + p_string
 
-class LogRecordFormatter:
-	func format(p_log_record: Dictionary) -> String:
+## SupportedBBColors:
+## BLACK,
+## RED,
+## GREEN,
+## YELLOW,
+## BLUE,
+## MAGENTA,
+## PINK,
+## CYAN,
+## WHITE,
+## ORANGE,
+## GRAY,
+class BBCodeFormatter:
+	var _do_format: bool
+
+	func _init(p_do_format: bool=true) -> void:
+		_do_format = p_do_format
+
+	func set_formatting_enabled(p_enable: bool=true) -> void:
+		_do_format = p_enable
+
+	func get_formatting_enabled() -> bool:
+		return _do_format
+
+	func _color_generic(p_text: String, p_color: Color, p_color_type: String) -> String:
+		if not _do_format:
+			return p_text
+		var color_string: String
+		var unsupported_color := false
+		match p_color:
+			Color.BLACK:
+				color_string = "black"
+			Color.RED:
+				color_string = "red"
+			Color.GREEN:
+				color_string = "green"
+			Color.YELLOW:
+				color_string = "yellow"
+			Color.BLUE:
+				color_string = "blue"
+			Color.MAGENTA:
+				color_string = "magenta"
+			Color.PINK:
+				color_string = "pink"
+			Color.CYAN:
+				color_string = "cyan"
+			Color.WHITE:
+				color_string = "white"
+			Color.ORANGE:
+				color_string = "orange"
+			Color.GRAY:
+				color_string = "gray"
+			_:
+				color_string = "unsupported color '%s'" % p_color
+				unsupported_color = true
+		var message := "[%s=%s]%s[/%s]" % [p_color_type, color_string, p_text, p_color_type]
+		if unsupported_color:
+			message = BBCodeFormatter.escape_bbcode(message)
+			return "[color=pink]%s[/color]" % message
+		return message
+
+	func color_fg(p_text: String, p_color: ) -> String:
+		if not _do_format:
+			return p_text
+		return _color_generic(p_text, p_color, "color")
+	func color_bg(p_text: String, p_color: ) -> String:
+		if not _do_format:
+			return p_text
+		return _color_generic(p_text, p_color, "bgcolor")
+	func color(p_text: String, p_fg_color: , p_bg_color: ) -> String:
+		if not _do_format:
+			return p_text
+		return _color_generic(_color_generic(p_text, p_fg_color, "color"), p_bg_color, "bgcolor")
+	func bold(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[b]%s[/b]" % p_text
+	func italic(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[i]%s[/i]" % p_text
+	func strike(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[s]%s[/s]" % p_text
+	func code(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[code]%s[/code]" % p_text
+	func center(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[center]%s[/center]" % p_text
+	func right(p_text: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[right]%s[/right]" % p_text
+	func url(p_text: String, p_url: String) -> String:
+		if not _do_format:
+			return p_text
+		return "[url=%s]%s[/url]" % [p_url, p_text]
+
+	static func escape_bbcode(p_bbcode_text: String) -> String:
+		# We only need to replace opening brackets to prevent tags from being parsed.
+		return p_bbcode_text.replace("[", "[lb]")
+
+class LogRecordFormatter extends RefCounted:
+	func format(p_log_record: Dictionary, p_sink_capabilties: Dictionary) -> String:
+		return "LogRecordFormatter: format() not implemented."
+
+class DefaultLogRecordFormatter extends LogRecordFormatter:
+	func format(p_log_record: Dictionary, p_sink_capabilties: Dictionary) -> String:
 		var tag: String = p_log_record["tag"]
 		var time_unix: float = p_log_record["time_unix"]
 		var level: LogLevel = p_log_record["level"]
@@ -518,6 +709,9 @@ class Logger extends LogSink:
 	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
 		_log_record_formatter = p_log_record_formatter
 
+	func get_log_record_formatter() -> LogRecordFormatter:
+		return _log_record_formatter
+
 	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary={}) -> void:
 		if p_level < _level:
 			return
@@ -525,7 +719,7 @@ class Logger extends LogSink:
 		p_log_record["tag"] = _tag
 		p_log_record["time_unix"] = Time.get_unix_time_from_system()
 		p_log_record["unformatted_message"] = p_message
-		var formatted_message := _log_record_formatter.format(p_log_record)
+		var formatted_message := _log_record_formatter.format(p_log_record, {})
 		_sink.write_bulks([p_log_record], [formatted_message])
 
 	func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=1) -> void:
@@ -594,7 +788,7 @@ var _logger_direct_console: Logger
 
 func _init() -> void:
 	_global_broadcast_sink = BroadcastPipe.new()
-	var log_formatter := LogRecordFormatter.new()
+	var log_formatter := DefaultLogRecordFormatter.new()
 	_global_logger = Logger.new("Global", LogLevel.TRACE, log_formatter, _global_broadcast_sink)
 	_logger_direct_console = Logger.new("gdlogging", LogLevel.TRACE, log_formatter, ConsoleSink.new())
 	if Engine.is_editor_hint():
@@ -627,6 +821,9 @@ func get_level() -> LogLevel:
 
 func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
 	_global_logger.set_log_record_formatter(p_log_record_formatter)
+
+func get_log_record_formatter() -> LogRecordFormatter:
+	return _global_logger.get_log_record_formatter()
 
 func add_sink(p_sink: LogSink) -> void:
 	_global_broadcast_sink.add_sink(p_sink)
