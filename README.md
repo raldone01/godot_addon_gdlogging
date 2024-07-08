@@ -48,12 +48,14 @@ timer.stop()
 
 ## Pipes
 
-* `FilteringPipe`: Filters messages by level and forwards them to another sink.
-* `BroadcastPipe`: Broadcasts messages to multiple sinks.
-* `BufferedPipe`: Buffers messages and forwards them to another sink.
-* `Logger`: Can receive messages from other Loggers and Sinks. Users will call the log functions which format the message.
+* `Logger`: Can receive messages from other loggers and pipes. Users will call the log functions.
+* `FilteringPipe`: Filters messages by level and forwards them to another pipe.
+* `BroadcastPipe`: Broadcasts messages to multiple pipes.
+* `BufferedPipe`: Buffers messages and forwards them to another pipe.
 
 ## Sinks
+
+All sinks are also pipes.
 
 * `ConsoleSink`: Outputs messages to stderr and stdout. Does not support colors.
 * `ConsoleRichSink`: Outputs messages to the godot Output console. Supports colors.
@@ -84,11 +86,11 @@ class MyCustomSink extends Log.LogSink:
   # LogSink specific functions below
 
   ## Sets the log record formatter.
-	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
-		pass
-	## Gets the log record formatter.
-	func get_log_record_formatter() -> LogRecordFormatter:
-		pass
+  func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+    pass
+  ## Gets the log record formatter.
+  func get_log_record_formatter() -> LogRecordFormatter:
+    pass
 ```
 
 ## Custom Formatters
