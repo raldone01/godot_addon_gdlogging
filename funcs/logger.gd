@@ -115,7 +115,6 @@ class FilteringPipe extends LogPipe:
 
 	func write_bulks(p_log_records: Array[Dictionary]) -> void:
 		var filtered_log_records: Array[Dictionary] = []
-		var filtered_formatted_messages := PackedStringArray()
 		for i in range(p_log_records.size()):
 			var log_record := p_log_records[i]
 			var level: LogLevel = log_record["level"]
@@ -231,8 +230,8 @@ class ThreadedLogSink extends LogSink:
 	var _io_thread_formatted_logs := PackedStringArray()
 
 	func _init(
-		p_log_record_formatter: LogRecordFormatter,
 		p_sink_capabilties: Dictionary={},
+		p_log_record_formatter: LogRecordFormatter=Log._global_log_record_formatter,
 		p_thread_priority: int=Thread.PRIORITY_LOW
 	) -> void:
 		_log_record_formatter = p_log_record_formatter
@@ -286,16 +285,22 @@ class ThreadedLogSink extends LogSink:
 
 	func close() -> void:
 		_io_thread_exit = true
-		_work_semaphore.post()
+		while _io_thread.is_alive():
+			_work_semaphore.post()
+			OS.delay_msec(10)
 		_io_thread.wait_to_finish()
 
 class ConsoleSink extends ThreadedLogSink:
 
-	func _init() -> void:
+	func _init(p_log_record_formatter: LogRecordFormatter=null) -> void:
 		var sink_capabilities := {}
-		super._init(_global_log_record_formatter, sink_capabilities)
 
-	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		if not p_log_record_formatter:
+			p_log_record_formatter = Log._global_log_record_formatter
+
+		super._init(sink_capabilities, p_log_record_formatter)
+
+	func _io_thread_output_logs(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray, flush_buffer: bool) -> void:
 		for i in range(p_formatted_messages.size()):
 			var log_record := p_log_records[i]
 			var formatted_message := p_formatted_messages[i]
@@ -306,28 +311,32 @@ class ConsoleSink extends ThreadedLogSink:
 			else:
 				printerr(formatted_message)
 
-class DirSink extends LogSink:
+class ConsoleRichSink extends ThreadedLogSink:
+	func _init() -> void:
+		var sink_capabilities := {
+			"bbcode": true,
+		}
+		super._init(sink_capabilities)
+
+	func _io_thread_output_logs(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray, flush_buffer: bool) -> void:
+		for formatted_message in p_formatted_messages:
+			print_rich(formatted_message)
+
+class DirSink extends ThreadedLogSink:
 	var _log_name: String
 	var _dir_path: String
 	var _max_file_size: int
 	var _max_file_count: int
 
 	## Can't use PackableStringArray because `sort_custom` is not implemented.
-	var _io_thread_last_dir_listing: Array[String] = []
+	var _last_dir_listing: Array[String] = []
 
-	var _io_thread_current_file: FileAccess
-	var _io_thread_current_file_size: int
-	var _io_thread_file_count: int = 0
+	var _current_file: FileAccess
+	var _current_file_size: int
+	var _file_count: int = 0
 
 	static var _last_session_id: int = randi() % 1000 + roundi(Time.get_unix_time_from_system() * 1000) % 1000
 	var _session_id: int = _last_session_id + 1
-
-	var _io_thread: Thread
-	var _io_thread_formatted_messages := PackedStringArray()
-	var _io_thread_log_lock := Mutex.new()
-	var _io_thread_work_semaphore := Semaphore.new()
-	var _io_thread_exit := false
-	var _io_thread_flush_buffer := false
 
 	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int=4042, p_max_file_count: int=10) -> void:
 		_log_name = p_log_name
@@ -338,8 +347,8 @@ class DirSink extends LogSink:
 		self._max_file_size = p_max_file_size
 		self._max_file_count = p_max_file_count
 
-		_io_thread = Thread.new()
-		_io_thread.start(self._io_thread_main, Thread.PRIORITY_LOW)
+		var sink_capabilities := {}
+		super._init(sink_capabilities)
 
 	func _is_dir_valid(p_dir_path: String) -> bool:
 		if not (p_dir_path.is_absolute_path() or p_dir_path.is_relative_path()):
@@ -360,8 +369,8 @@ class DirSink extends LogSink:
 			return false
 		return true
 
-	func _io_thread_update_dir_listing() -> void:
-		_io_thread_last_dir_listing.clear()
+	func _update_dir_listing() -> void:
+		_last_dir_listing.clear()
 		var dir_list := DirAccess.open(_dir_path)
 		if not dir_list:
 			return
@@ -371,8 +380,8 @@ class DirSink extends LogSink:
 			if filename == "":
 				break
 			if _is_log_file(filename):
-				_io_thread_last_dir_listing.append(filename)
-		_io_thread_last_dir_listing.sort_custom(self._compare_file_modification_time)
+				_last_dir_listing.append(filename)
+		_last_dir_listing.sort_custom(self._compare_file_modification_time)
 		dir_list.list_dir_end()
 
 	## Descending order: oldest last
@@ -383,18 +392,18 @@ class DirSink extends LogSink:
 		var b_time := FileAccess.get_modified_time(b_path)
 		return a_time > b_time
 
-	func _io_thread_generate_filename() -> String:
+	func _generate_filename() -> String:
 		var filename := "log_%s_%s_%d_%d.log" % [
 			_log_name,
 			Log.format_time_default_for_filename(Time.get_unix_time_from_system()),
 			_session_id,
-			_io_thread_file_count
+			_file_count
 		]
 		filename = filename.replace(" ", "_").replace("/", "-").replace(":", "-")
 		return filename
 
-	func _io_thread_cleanup_old_files() -> void:
-		var last_dir_listing := _io_thread_last_dir_listing
+	func _cleanup_old_files() -> void:
+		var last_dir_listing := _last_dir_listing
 		var file_count := last_dir_listing.size()
 		if file_count <= _max_file_count:
 			return
@@ -407,123 +416,94 @@ class DirSink extends LogSink:
 			dir.remove(path)
 			last_dir_listing.remove_at(last_dir_listing.size() - 1)
 
-	func flush_buffer() -> void:
-		_io_thread_flush_buffer = true
-		_io_thread_work_semaphore.post()
-
-	func _io_thread_flush_file() -> void:
+	func _flush_file() -> void:
 		# flush file
-		if _io_thread_flush_buffer:
-			_io_thread_flush_buffer = false
-			if _io_thread_current_file:
-				_io_thread_current_file.flush()
+		if _current_file:
+			_current_file.flush()
 
-	func _io_thread_main() -> void:
-		while not _io_thread_exit:
-			_io_thread_work_semaphore.wait()
-			_io_thread_log_lock.lock()
-			var log_block: String
-			if _io_thread_formatted_messages.size() > 0:
-				log_block = "\n".join(_io_thread_formatted_messages) + "\n"
-				_io_thread_formatted_messages.clear()
-			else:
-				log_block = ""
-			_io_thread_log_lock.unlock()
-			# write formatted message
-			if not _io_thread_current_file:
-				_io_thread_open_new_file()
-			if _io_thread_current_file_size >= _max_file_size:
-				_io_thread_open_new_file()
-			# only approximate size utf8
-			_io_thread_current_file_size += log_block.length()
-			_io_thread_current_file.store_string(log_block)
-			_io_thread_flush_file()
-		# thread exit
-		_io_thread_flush_file()
-		if _io_thread_current_file:
-			_io_thread_current_file.close()
+	func _io_thread_output_logs(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray, flush_buffer: bool) -> void:
+		var log_block: String
+		if p_formatted_messages.size() > 0:
+			log_block = "\n".join(p_formatted_messages) + "\n"
+		else:
+			log_block = ""
+		# write formatted message
+		if (not _current_file) or (_current_file_size >= _max_file_size):
+			_open_new_file()
+		# only approximate size because of utf8
+		_current_file_size += log_block.length()
+		_current_file.store_string(log_block)
+		if flush_buffer:
+			_flush_file()
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		# If lock causes lag spikes it can be replaced with a try_lock but a second buffer will be needed to avoid dropping logs.
-		# Also if this is ever implemented flush_buffer() would have to use lock and ensure all data is sent to the thread.
-		_io_thread_log_lock.lock()
-		_io_thread_formatted_messages.append_array(p_formatted_messages)
-		_io_thread_log_lock.unlock()
-		_io_thread_work_semaphore.post()
+	func _io_thread_exit_sink() -> void:
+		_flush_file()
+		if _current_file:
+			_current_file.close()
 
-	func _io_thread_open_new_file() -> void:
+	func _open_new_file() -> void:
 		if not _dir_path:
 			return
 
-		if _io_thread_current_file:
-			_io_thread_current_file.close()
+		if _current_file:
+			_current_file.close()
 
-		_io_thread_update_dir_listing()
-		_io_thread_cleanup_old_files()
+		_update_dir_listing()
+		_cleanup_old_files()
 
-		var filename := _io_thread_generate_filename()
+		var filename := _generate_filename()
 		var path := _dir_path + "/" + filename
-		_io_thread_current_file = FileAccess.open(path, FileAccess.WRITE)
-		_io_thread_current_file_size = 0
+		_current_file = FileAccess.open(path, FileAccess.WRITE)
+		_current_file_size = 0
 
-		if not _io_thread_current_file:
+		if not _current_file:
 			Log._logger_direct_console.error("DirSink: Failed to open new log file '%s'." % path)
 			return
-		_io_thread_file_count += 1
-
-	func close() -> void:
-		_io_thread_exit = true
-		while _io_thread.is_alive():
-			_io_thread_work_semaphore.post()
-			OS.delay_msec(10)
-		_io_thread.wait_to_finish()
+		_file_count += 1
 
 class MemoryWindowSink extends LogSink:
 	var _max_lines: int
-	var _formatted_messages := PackedStringArray()
-	var _log_records: Array[Dictionary] = []
+	var _log_buffer_formatted := PackedStringArray()
+	var _log_buffer_records: Array[Dictionary] = []
+	var _capabilties := {}
+	var _log_record_formatter: LogRecordFormatter
 
 	func _init(p_max_lines: int=100) -> void:
 		_max_lines = p_max_lines
+		_log_record_formatter = Log._global_log_record_formatter
 
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		_formatted_messages.append_array(p_formatted_messages)
-		_log_records.append_array(p_log_records)
-		while _formatted_messages.size() > _max_lines:
-			_formatted_messages.remove_at(0)
-			_log_records.remove_at(0)
+	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+		_log_record_formatter = p_log_record_formatter
+
+	func get_log_record_formatter() -> LogRecordFormatter:
+		return _log_record_formatter
+
+	func set_buffered_lines(p_max_lines: int) -> void:
+		_max_lines = p_max_lines
+
+	func get_buffered_lines() -> int:
+		return _max_lines
+
+	func set_bbcode_support(p_enable: bool) -> void:
+		_capabilties["bbcode"] = p_enable
+
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		for log_record in p_log_records:
+			var formatted_message := _log_record_formatter.format(log_record, _capabilties)
+			_log_buffer_formatted.append(formatted_message)
+		_log_buffer_records.append_array(p_log_records)
+		while _log_buffer_formatted.size() > _max_lines:
+			_log_buffer_formatted.remove_at(0)
+			_log_buffer_records.remove_at(0)
 
 	func flush_buffer() -> void:
 		pass
 
 	func get_buffer() -> Dictionary:
 		return {
-			"formatted_messages": _formatted_messages,
-			"log_records": _log_records,
+			"formatted_messages": _log_buffer_formatted,
+			"log_records": _log_buffer_records,
 		}
-
-class FormattingPipe extends LogSink:
-	var _sink: LogSink
-	var _log_record_formatter: LogRecordFormatter
-
-	func _init(p_sink: LogSink, p_log_record_formatter: LogRecordFormatter) -> void:
-		_sink = p_sink
-		_log_record_formatter = p_log_record_formatter
-
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		var formatted_messages := PackedStringArray()
-		for i in range(p_log_records.size()):
-			var log_record := p_log_records[i]
-			var formatted_message := _log_record_formatter.format(log_record, {})
-			formatted_messages.append(formatted_message)
-		_sink.write_bulks(p_log_records, formatted_messages)
-
-	func flush_buffer() -> void:
-		_sink.flush_buffer()
-
-	func close() -> void:
-		flush_buffer()
-		_sink.close()
 
 ## Left pads a string with a character to a given length.
 static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") -> String:
@@ -547,7 +527,8 @@ static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") 
 ## WHITE,
 ## ORANGE,
 ## GRAY,
-class BBCodeFormatter:
+## TRANSPARENT, (for bgcolor only)
+class BBCodeFormatter extends RefCounted:
 	var _do_format: bool
 
 	func _init(p_do_format: bool=true) -> void:
@@ -596,18 +577,18 @@ class BBCodeFormatter:
 			return "[color=pink]%s[/color]" % message
 		return message
 
-	func color_fg(p_text: String, p_color: ) -> String:
+	func color_fg(p_text: String, p_color: Color) -> String:
 		if not _do_format:
 			return p_text
 		return _color_generic(p_text, p_color, "color")
-	func color_bg(p_text: String, p_color: ) -> String:
-		if not _do_format:
+	func color_bg(p_text: String, p_color: Color) -> String:
+		if not _do_format or p_color == Color.TRANSPARENT:
 			return p_text
 		return _color_generic(p_text, p_color, "bgcolor")
-	func color(p_text: String, p_fg_color: , p_bg_color: ) -> String:
+	func color(p_text: String, p_fg_color: Color, p_bg_color: Color) -> String:
 		if not _do_format:
 			return p_text
-		return _color_generic(_color_generic(p_text, p_fg_color, "color"), p_bg_color, "bgcolor")
+		return color_bg(color_fg(p_text, p_fg_color), p_bg_color)
 	func bold(p_text: String) -> String:
 		if not _do_format:
 			return p_text
@@ -641,12 +622,89 @@ class BBCodeFormatter:
 		# We only need to replace opening brackets to prevent tags from being parsed.
 		return p_bbcode_text.replace("[", "[lb]")
 
+class BBCodeBuilder extends RefCounted:
+	var _bbcode_formatter := BBCodeFormatter.new()
+	var _bbcode_text: PackedStringArray
+
+	func _init(p_backing_array: PackedStringArray=PackedStringArray()) -> void:
+		_bbcode_text = p_backing_array
+
+	func set_formatting_enabled(p_enable: bool=true) -> void:
+		_bbcode_formatter.set_formatting_enabled(p_enable)
+
+	func get_formatting_enabled() -> bool:
+		return _bbcode_formatter.get_formatting_enabled()
+
+	func color_fg(p_text: String, p_color: Color) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.color_fg(p_text, p_color))
+		return self
+
+	func color_bg(p_text: String, p_color: Color) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.color_bg(p_text, p_color))
+		return self
+
+	func color(p_text: String, p_fg_color: Color, p_bg_color: Color) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.color(p_text, p_fg_color, p_bg_color))
+		return self
+
+	func bold(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.bold(p_text))
+		return self
+
+	func italic(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.italic(p_text))
+		return self
+
+	func strike(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.strike(p_text))
+		return self
+
+	func code(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.code(p_text))
+		return self
+
+	func center(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.center(p_text))
+		return self
+
+	func right(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.right(p_text))
+		return self
+
+	func url(p_text: String, p_url: String) -> BBCodeBuilder:
+		_bbcode_text.append(_bbcode_formatter.url(p_text, p_url))
+		return self
+
+	func raw(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(p_text)
+		return self
+
+	func escaped(p_text: String) -> BBCodeBuilder:
+		_bbcode_text.append(BBCodeFormatter.escape_bbcode(p_text))
+		return self
+
+	func get_text(p_clear: bool) -> String:
+		var text := "".join(_bbcode_text)
+		if p_clear:
+			clear()
+		return text
+
+	func join(p_separator: String) -> String:
+		return p_separator.join(_bbcode_text)
+
+	func clear() -> void:
+		_bbcode_text.clear()
+
 class LogRecordFormatter extends RefCounted:
 	func format(p_log_record: Dictionary, p_sink_capabilties: Dictionary) -> String:
 		return "LogRecordFormatter: format() not implemented."
 
 class DefaultLogRecordFormatter extends LogRecordFormatter:
 	func format(p_log_record: Dictionary, p_sink_capabilties: Dictionary) -> String:
+		var bbcode_enabled: bool = p_sink_capabilties.has("bbcode") and p_sink_capabilties["bbcode"]
+
+		var bbcode_formatter := BBCodeFormatter.new(bbcode_enabled)
+
 		var tag: String = p_log_record["tag"]
 		var time_unix: float = p_log_record["time_unix"]
 		var level: LogLevel = p_log_record["level"]
@@ -654,11 +712,32 @@ class DefaultLogRecordFormatter extends LogRecordFormatter:
 
 		var time_str := Log.format_time_default(time_unix)
 		var level_str := Log.format_log_level_name_short(level)
+
+		var level_color: Color
+		match level:
+			LogLevel.TRACE:
+				level_color = Color.CYAN
+			LogLevel.DEBUG:
+				level_color = Color.MAGENTA
+			LogLevel.INFO:
+				level_color = Color.GREEN
+			LogLevel.WARNING:
+				level_color = Color.ORANGE
+			LogLevel.ERROR:
+				level_color = Color.RED
+
+		var message_color_fg := Color.WHITE
+		var message_color_bg := Color.TRANSPARENT
+
+		if level == LogLevel.ERROR:
+			message_color_fg = Color.RED
+			#message_color_bg = Color.WHITE
+
 		var formatted_message := "[%s] [%s] [%s] %s" % [
-			time_str,
+			bbcode_formatter.color_fg(time_str, Color.GRAY),
 			Log.pad_string(tag, 15),
-			level_str,
-			unformatted_message
+			bbcode_formatter.color_fg(level_str, level_color),
+			bbcode_formatter.color(unformatted_message, message_color_fg, message_color_bg),
 		]
 		if p_log_record.has("stack"):
 			var stack: Array[Dictionary] = p_log_record["stack"]
@@ -666,36 +745,34 @@ class DefaultLogRecordFormatter extends LogRecordFormatter:
 				var source: String = frame["source"]
 				var line: int = frame["line"]
 				var function: String = frame["function"]
-				formatted_message += "\n\tAt: %s:%d:%s()" % [
-					source,
-					line,
-					function
+
+				var url_target := "file://%s:%d" % [source, line]
+				var url_text := "%s:%d:%s()" % [source, line, function]
+
+				formatted_message += "\n\tAt: %s" % [
+					bbcode_formatter.url(url_text, url_target),
 				]
 		return formatted_message
 
-class Logger extends LogSink:
+class Logger extends LogPipe:
 	var _tag: String
-	var _log_record_formatter: LogRecordFormatter
 	var _level: LogLevel
-	var _sink: LogSink
+	var _pipe: LogPipe
 
 	func _init(
 		p_tag: String,
 		p_level: LogLevel=LogLevel.TRACE,
-		p_log_record_formatter: LogRecordFormatter=Log._global_logger._log_record_formatter,
-		p_sink: LogSink=Log._global_logger
+		p_pipe: LogPipe=Log._global_logger
 	) -> void:
 		_tag = p_tag
-		_log_record_formatter = p_log_record_formatter
 		_level = p_level
-		_sink = p_sink
+		_pipe = p_pipe
 
-	## Write will not format the message, it will just pass it to the underlying sink.
-	func write_bulks(p_log_records: Array[Dictionary], p_formatted_messages: PackedStringArray) -> void:
-		_sink.write_bulks(p_log_records, p_formatted_messages)
+	func write_bulks(p_log_records: Array[Dictionary]) -> void:
+		_pipe.write_bulks(p_log_records)
 
 	func flush_buffer() -> void:
-		_sink.flush_buffer()
+		_pipe.flush_buffer()
 
 	func get_tag() -> String:
 		return _tag
@@ -706,12 +783,6 @@ class Logger extends LogSink:
 	func get_level() -> LogLevel:
 		return _level
 
-	func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
-		_log_record_formatter = p_log_record_formatter
-
-	func get_log_record_formatter() -> LogRecordFormatter:
-		return _log_record_formatter
-
 	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary={}) -> void:
 		if p_level < _level:
 			return
@@ -719,8 +790,7 @@ class Logger extends LogSink:
 		p_log_record["tag"] = _tag
 		p_log_record["time_unix"] = Time.get_unix_time_from_system()
 		p_log_record["unformatted_message"] = p_message
-		var formatted_message := _log_record_formatter.format(p_log_record, {})
-		_sink.write_bulks([p_log_record], [formatted_message])
+		_pipe.write_bulks([p_log_record])
 
 	func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=1) -> void:
 		var log_record := {}
@@ -743,7 +813,7 @@ class Logger extends LogSink:
 		self.log(LogLevel.ERROR, p_message)
 
 	func close() -> void:
-		_sink.close()
+		_pipe.close()
 
 class LogTimer:
 	var _start_time_usec: int
@@ -782,17 +852,18 @@ class LogTimer:
 		if _threshold_msec < elapsed_time_usec / 1000:
 			_logger.log(_level, "%s exceeded threshold of %d msec: took %f seconds." % [_message, _threshold_msec, elapsed_time_sec])
 
-var _global_broadcast_sink: BroadcastPipe
+var _global_broadcast_pipe: BroadcastPipe
 var _global_logger: Logger
 var _logger_direct_console: Logger
+var _global_log_record_formatter: LogRecordFormatter
 
 func _init() -> void:
-	_global_broadcast_sink = BroadcastPipe.new()
-	var log_formatter := DefaultLogRecordFormatter.new()
-	_global_logger = Logger.new("Global", LogLevel.TRACE, log_formatter, _global_broadcast_sink)
-	_logger_direct_console = Logger.new("gdlogging", LogLevel.TRACE, log_formatter, ConsoleSink.new())
+	_global_log_record_formatter = DefaultLogRecordFormatter.new()
+	_global_broadcast_pipe = BroadcastPipe.new()
+	_global_logger = Logger.new("Global", LogLevel.TRACE, _global_broadcast_pipe)
+	_logger_direct_console = Logger.new("gdlogging", LogLevel.TRACE, ConsoleSink.new(_global_log_record_formatter))
 	if Engine.is_editor_hint():
-		add_sink(ConsoleSink.new())
+		add_pipe(ConsoleSink.new(_global_log_record_formatter))
 
 func _exit_tree() -> void:
 	flush_buffer()
@@ -819,17 +890,17 @@ func set_level(p_level: LogLevel) -> void:
 func get_level() -> LogLevel:
 	return _global_logger.get_level()
 
-func set_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
-	_global_logger.set_log_record_formatter(p_log_record_formatter)
+func set_default_log_record_formatter(p_log_record_formatter: LogRecordFormatter) -> void:
+	_global_log_record_formatter = p_log_record_formatter
 
-func get_log_record_formatter() -> LogRecordFormatter:
-	return _global_logger.get_log_record_formatter()
+func get_default_log_record_formatter() -> LogRecordFormatter:
+	return _global_log_record_formatter
 
-func add_sink(p_sink: LogSink) -> void:
-	_global_broadcast_sink.add_sink(p_sink)
+func add_pipe(p_pipe: LogPipe) -> void:
+	_global_broadcast_pipe.add_pipe(p_pipe)
 
-func remove_sink(p_sink: LogSink) -> void:
-	_global_broadcast_sink.remove_sink(p_sink)
+func remove_pipe(p_pipe: LogSink) -> void:
+	_global_broadcast_pipe.remove_pipe(p_pipe)
 
 func flush_buffer() -> void:
 	_global_logger.flush_buffer()
@@ -893,7 +964,9 @@ const ERROR_MESSAGES = {
 }
 # END LICENSE MIT: LICENSE-godot-logger.md
 
-static func format_error(p_error: int) -> String:
+func format_error(p_error: int) -> String:
+	## removed static because of a an annoying hint to use the import statement instead of the singleton
+
 	if ERROR_MESSAGES.has(p_error):
 		return ERROR_MESSAGES[p_error]
 	return "Unknown p_error (%d)." % p_error
