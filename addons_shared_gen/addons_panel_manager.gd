@@ -41,7 +41,7 @@ class AddonsPanelManager:
 		if not _addons_dock:
 			_addons_dock = _find_addons_dock()
 		if not _addons_dock:
-			_addons_dock = preload ("res://addons/gdlogging/addons_shared_gen/addons_panel_manager/scenes/ui_addons_dock.tscn").instantiate()
+			_addons_dock = preload("res://addons/gdlogging/addons_shared_gen/addons_panel_manager/scenes/ui_addons_dock.tscn").instantiate()
 			_addons_dock.add_to_group(ADDONS_DOCK_NAME)
 			_editor_plugin.add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _addons_dock)
 

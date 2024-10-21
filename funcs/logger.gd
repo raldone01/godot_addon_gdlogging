@@ -167,7 +167,7 @@ class BufferedPipe extends LogPipe:
 	## [param p_buffer_size]: The size of the buffer. If 0, the buffer will be disabled.
 	##
 	## The buffer size is the number of messages that will be buffered before being flushed to the pipe.
-	func _init(p_pipe: LogPipe, p_buffer_size: int=42) -> void:
+	func _init(p_pipe: LogPipe, p_buffer_size: int = 42) -> void:
 		if p_buffer_size < 0:
 			p_buffer_size = 0
 			Log._logger_direct_console.warning("BufferedPipe: Buffer size must be equal or greater than 0.")
@@ -230,9 +230,9 @@ class ThreadedLogSink extends LogSink:
 	var _io_thread_formatted_logs := PackedStringArray()
 
 	func _init(
-		p_sink_capabilties: Dictionary={},
-		p_log_record_formatter: LogRecordFormatter=Log._global_log_record_formatter,
-		p_thread_priority: int=Thread.PRIORITY_LOW
+		p_sink_capabilties: Dictionary = {},
+		p_log_record_formatter: LogRecordFormatter = Log._global_log_record_formatter,
+		p_thread_priority: int = Thread.PRIORITY_LOW
 	) -> void:
 		_log_record_formatter = p_log_record_formatter
 		_sink_capabilties = p_sink_capabilties
@@ -292,7 +292,7 @@ class ThreadedLogSink extends LogSink:
 
 class ConsoleSink extends ThreadedLogSink:
 
-	func _init(p_log_record_formatter: LogRecordFormatter=null) -> void:
+	func _init(p_log_record_formatter: LogRecordFormatter = null) -> void:
 		var sink_capabilities := {}
 
 		if not p_log_record_formatter:
@@ -338,7 +338,7 @@ class DirSink extends ThreadedLogSink:
 	static var _last_session_id: int = randi() % 1000 + roundi(Time.get_unix_time_from_system() * 1000) % 1000
 	var _session_id: int = _last_session_id + 1
 
-	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int=4042, p_max_file_count: int=10) -> void:
+	func _init(p_log_name: String, p_dir_path: String, p_max_file_size: int = 4042, p_max_file_count: int = 10) -> void:
 		_log_name = p_log_name
 		if p_dir_path.begins_with("user://") or p_dir_path.begins_with("res://"):
 			p_dir_path = ProjectSettings.globalize_path(p_dir_path)
@@ -409,7 +409,7 @@ class DirSink extends ThreadedLogSink:
 			return
 		var files_to_delete := file_count - _max_file_count
 		for i in range(files_to_delete):
-			var filename := last_dir_listing[- 1]
+			var filename := last_dir_listing[-1]
 			var path := _dir_path + "/" + filename
 			# OS.move_to_trash(path) # completely blocks the main thread
 			var dir := DirAccess.open(".")
@@ -468,7 +468,7 @@ class MemoryWindowSink extends LogSink:
 	var _capabilties := {}
 	var _log_record_formatter: LogRecordFormatter
 
-	func _init(p_max_lines: int=100) -> void:
+	func _init(p_max_lines: int = 100) -> void:
 		_max_lines = p_max_lines
 		_log_record_formatter = Log._global_log_record_formatter
 
@@ -506,7 +506,7 @@ class MemoryWindowSink extends LogSink:
 		}
 
 ## Left pads a string with a character to a given length.
-static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") -> String:
+static func pad_string(p_string: String, p_length: int, p_pad_char: String = " ") -> String:
 	var pad_length := p_length - p_string.length()
 	if pad_length <= 0:
 		return p_string
@@ -531,10 +531,10 @@ static func pad_string(p_string: String, p_length: int, p_pad_char: String=" ") 
 class BBCodeFormatter extends RefCounted:
 	var _do_format: bool
 
-	func _init(p_do_format: bool=true) -> void:
+	func _init(p_do_format: bool = true) -> void:
 		_do_format = p_do_format
 
-	func set_formatting_enabled(p_enable: bool=true) -> void:
+	func set_formatting_enabled(p_enable: bool = true) -> void:
 		_do_format = p_enable
 
 	func get_formatting_enabled() -> bool:
@@ -626,10 +626,10 @@ class BBCodeBuilder extends RefCounted:
 	var _bbcode_formatter := BBCodeFormatter.new()
 	var _bbcode_text: PackedStringArray
 
-	func _init(p_backing_array: PackedStringArray=PackedStringArray()) -> void:
+	func _init(p_backing_array: PackedStringArray = PackedStringArray()) -> void:
 		_bbcode_text = p_backing_array
 
-	func set_formatting_enabled(p_enable: bool=true) -> void:
+	func set_formatting_enabled(p_enable: bool = true) -> void:
 		_bbcode_formatter.set_formatting_enabled(p_enable)
 
 	func get_formatting_enabled() -> bool:
@@ -713,6 +713,9 @@ class DefaultLogRecordFormatter extends LogRecordFormatter:
 		var time_str := Log.format_time_default(time_unix)
 		var level_str := Log.format_log_level_name_short(level)
 
+		var message_color_fg := Color.WHITE
+		var message_color_bg := Color.TRANSPARENT
+
 		var level_color: Color
 		match level:
 			LogLevel.TRACE:
@@ -725,13 +728,8 @@ class DefaultLogRecordFormatter extends LogRecordFormatter:
 				level_color = Color.ORANGE
 			LogLevel.ERROR:
 				level_color = Color.RED
-
-		var message_color_fg := Color.WHITE
-		var message_color_bg := Color.TRANSPARENT
-
-		if level == LogLevel.ERROR:
-			message_color_fg = Color.RED
-			#message_color_bg = Color.WHITE
+				message_color_fg = Color.RED
+				#message_color_bg = Color.WHITE
 
 		var formatted_message := "[%s] [%s] [%s] %s" % [
 			bbcode_formatter.color_fg(time_str, Color.GRAY),
@@ -761,8 +759,8 @@ class Logger extends LogPipe:
 
 	func _init(
 		p_tag: String,
-		p_level: LogLevel=LogLevel.TRACE,
-		p_pipe: LogPipe=Log._global_logger
+		p_level: LogLevel = LogLevel.TRACE,
+		p_pipe: LogPipe = Log._global_logger
 	) -> void:
 		_tag = p_tag
 		_level = p_level
@@ -783,7 +781,7 @@ class Logger extends LogPipe:
 	func get_level() -> LogLevel:
 		return _level
 
-	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary={}) -> void:
+	func log(p_level: LogLevel, p_message: String, p_log_record: Dictionary = {}) -> void:
 		if p_level < _level:
 			return
 		p_log_record["level"] = p_level
@@ -792,7 +790,7 @@ class Logger extends LogPipe:
 		p_log_record["unformatted_message"] = p_message
 		_pipe.write_bulks([p_log_record])
 
-	func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=1) -> void:
+	func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 1) -> void:
 		var log_record := {}
 		if OS.is_debug_build():
 			var stack: Array[Dictionary] = get_stack()
@@ -825,7 +823,7 @@ class LogTimer:
 	var _message: String
 	var _level: LogLevel = LogLevel.INFO
 
-	func _init(p_message: String, p_threshold_msec: int=0, p_logger: Logger=Log._global_logger) -> void:
+	func _init(p_message: String, p_threshold_msec: int = 0, p_logger: Logger = Log._global_logger) -> void:
 		_logger = p_logger
 		_message = p_message
 		_threshold_msec = p_threshold_msec
@@ -869,7 +867,7 @@ func _exit_tree() -> void:
 	flush_buffer()
 	_global_logger.close()
 
-func trace(p_message: String, p_stack_depth: int=1, p_stack_hint: int=2) -> void:
+func trace(p_message: String, p_stack_depth: int = 1, p_stack_hint: int = 2) -> void:
 	_global_logger.trace(p_message, p_stack_depth, p_stack_hint)
 
 func debug(p_message: String) -> void:

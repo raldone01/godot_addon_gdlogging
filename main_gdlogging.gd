@@ -15,7 +15,7 @@ func _exit_tree() -> void:
 	addons_panel_manager.remove_main_panel()
 
 func _get_plugin_icon() -> Texture2D:
-	return preload ("res://addons/gdlogging/assets/icons_editor/plugin_icon_white.svg")
+	return preload("res://addons/gdlogging/assets/icons_editor/plugin_icon_white.svg")
 
 func _get_plugin_name() -> String:
 	return "gdlogging"
