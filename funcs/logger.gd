@@ -813,9 +813,50 @@ class Logger extends LogPipe:
 	func close() -> void:
 		_pipe.close()
 
+class FormatTimeUsecResult:
+	var elapsed: float
+	var unit: String
+	var color: Color
+	var scale: int
+
+	func _init(p_elapsed: float, p_unit: String, p_color: Color, p_scale: int) -> void:
+		elapsed = p_elapsed
+		unit = p_unit
+		color = p_color
+		scale = p_scale
+
+	# TODO: COLOR SUPPORT depending on the sink capabilities
+	func to_string() -> String:
+		return "%.4f %s" % [elapsed, unit]
+
+func format_time_usec(p_time_usec: int) -> FormatTimeUsecResult:
+	var elapsed: int
+	var unit: String
+	var color: Color
+	var scale: int
+	if p_time_usec >= 1_000_000:
+		scale = 1_000_000
+		elapsed = p_time_usec / 1_000_000
+		unit = "s"
+		color = Color.RED
+	elif p_time_usec >= 1_000:
+		scale = 1_000
+		elapsed = p_time_usec / 1_000
+		unit = "ms"
+		color = Color.BLUE
+	else:
+		scale = 1
+		elapsed = p_time_usec
+		unit = "µs"
+		color = Color.GREEN
+	return FormatTimeUsecResult.new(elapsed, unit, color, scale)
+
+
 class LogTimer:
 	var _start_time_usec: int
 	var _end_time_usec: int
+
+	var _total_time_usec: int
 
 	var _threshold_msec: int = 0
 
@@ -841,14 +882,23 @@ class LogTimer:
 	func stop() -> void:
 		_end_time_usec = Time.get_ticks_usec()
 		var elapsed_time_usec := _end_time_usec - _start_time_usec
-		var elapsed_time_sec := elapsed_time_usec / 1000000.0
+		_total_time_usec += elapsed_time_usec
 
 		if _threshold_msec == 0:
-			_logger.log(_level, "%s took %f seconds." % [_message, elapsed_time_sec])
+			_logger.log(_level, "%s took %s." % [_message, format_time_usec(elapsed_time_usec).to_string()])
 			return
 
 		if _threshold_msec < elapsed_time_usec / 1000:
-			_logger.log(_level, "%s exceeded threshold of %d msec: took %f seconds." % [_message, _threshold_msec, elapsed_time_sec])
+			_logger.log(_level, "%s exceeded threshold of %s: took %s." % [_message, format_time_usec(_threshold_msec * 1000).to_string(), format_time_usec(elapsed_time_usec).to_string()])
+
+	func log_total_time() -> void:
+		_logger.log(_level, "%s took %s in total." % [_message, format_time_usec(_total_time_usec).to_string()])
+
+	func get_total_time_usec() -> int:
+		return _total_time_usec
+
+	func reset_total_time() -> void:
+		_total_time_usec = 0
 
 var _global_broadcast_pipe: BroadcastPipe
 var _global_logger: Logger
